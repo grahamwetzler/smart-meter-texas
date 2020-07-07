@@ -12,13 +12,9 @@ with open("HISTORY.rst") as history_file:
 
 requirements = []
 
-setup_requirements = [
-    "pytest-runner",
-]
+setup_requirements = ["pytest-runner"]
 
-test_requirements = [
-    "pytest>=3",
-]
+test_requirements = ["pytest>=3"]
 
 setup(
     author="Graham Wetzler",
@@ -45,7 +41,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
-    url="https://github.com/grahamwetzler/smart_meter_texas",
+    url="https://github.com/grahamwetzler/smart-meter-texas",
     version="0.1.0",
     zip_safe=False,
 )
