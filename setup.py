@@ -18,13 +18,8 @@ test_requirements = ['pytest>=3', ]
 
 setup(
     author="Graham Wetzler",
-<<<<<<< HEAD
-    author_email='graham@wetzler.dev',
-    python_requires='>=3.5',
-=======
     author_email="graham@wetzler.dev",
     python_requires=">=3.6",
->>>>>>> f3589f5... Remove support for Python 3.5
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
