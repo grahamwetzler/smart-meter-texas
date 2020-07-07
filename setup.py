@@ -30,14 +30,17 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    description="Package to connect to and retrieve data from the unoffical Smart Meter Texas API",
+    description="Package to connect to and retrieve data from the unoffical \
+        Smart Meter Texas API",
     install_requires=requirements,
     license="MIT license",
     long_description=readme + "\n\n" + history,
     include_package_data=True,
     keywords="smart_meter_texas",
     name="smart_meter_texas",
-    packages=find_packages(include=["smart_meter_texas", "smart_meter_texas.*"]),
+    packages=find_packages(  # no-fmt
+        include=["smart_meter_texas", "smart_meter_texas.*"]
+    ),
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
