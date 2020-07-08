@@ -17,7 +17,7 @@ class Auth:
         username: str,
         password: str,
         default_timeout: int = DEFAULT_TIMEOUT,
-    ):
+    ) -> None:
         self.websession = websession
         self.username = username
         self.password = password
@@ -64,7 +64,7 @@ class Auth:
 class Meter:
     """Class representation of a smart meter."""
 
-    def __init__(self, auth: Auth, esiid: str, meter: str):
+    def __init__(self, auth: Auth, esiid: str, meter: str) -> None:
         self.auth = auth.websession
         self.headers = auth.headers
         self.esiid = esiid
@@ -91,7 +91,7 @@ class Meter:
         )
         return await resp.json()
 
-    async def async_read_meter(self):
+    async def async_read_meter(self) -> None:
         await self._request_odr()
         while True:
             reading = await self._get_latest_odr()
