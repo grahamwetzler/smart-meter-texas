@@ -31,6 +31,11 @@ To install:
 
   $ pip install smart-meter-texas
 
+Example
+-------
+
+Please see the examples for an idea of how to get started using the package.
+
 Credits
 -------
 

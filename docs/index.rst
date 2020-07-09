@@ -1,5 +1,5 @@
 Welcome to Smart Meter Texas's documentation!
-======================================
+=============================================
 
 .. toctree::
    :maxdepth: 2
