@@ -1,34 +1,16 @@
-# Config file for automatic testing at travis-ci.com
-
 language: python
 python:
-<<<<<<< HEAD
-  - 3.8
-  - 3.7
-  - 3.6
-  - 3.5
-
-# Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-=======
 - 3.8
 - 3.7
-- 3.6 
->>>>>>> e5eedaa... Remove support for Python 3.5
+- 3.6
 install: pip install -U tox-travis
-
-# Command to run tests, e.g. python setup.py test
 script: tox
-
-# Assuming you have installed the travis-ci CLI tool, after you
-# create the Github repo and add it to Travis, run the
-# following command to finish PyPI deployment setup:
-# $ travis encrypt --add deploy.password
 deploy:
   provider: pypi
   distributions: sdist bdist_wheel
   user: grahamwetzler
   password:
-    secure: PLEASE_REPLACE_ME
+    secure: Mxjh6Z429yXCYqwoVfcgeWNbx9CkYS7jMej2RdgQGs/RKYhXOKKNXizk+j+bCHxN51Y66+wROxnrvwpmCMZPOwA6c6a2hDLyMQYCbpsgATTmyUXR5jFwoksmNuoB0MrJe0Qlh5SI1DgmhDt0G5UR65zY7xSLUVQFyXNYr2DwL2CJFdTw3R19XYCy+kIo8FPS7E52qkQHYHyG9Rv58S0wapSQauUOddGZOy35NqSBSlLG7/eEhyK0oGTw0NQZpH3PD3pfPhUWf0dGgnh3vqakPz7fNYQUm/y1EmuMET0XbTqipk1y2P+tlOa2o9pdeD2rO90cn6TdseeG4g8xrupkPUO4dEw7bAm5oUeTyiwUH+Fx1HeqnSFPpIjoK8tU4B6YaUStqWQ1hsbIVmWBi+UlxJ+zfk5fD+cvVztAwf9aRgWogKHKFjHHj47XMwGGRXWo+9qgNwEMA3qsam6mXoDLn4/xsExFmIAuWAtBFhmkmG5rVnjqeRRzYaS4lWRc2ed976yA3iuA8lW5U+zcP68w6bpDujfsu2nh9hBfd9SNdQgRWSQj8edPy9gBN74R2n6GKY1T9BgivdZfShS2wd3ahs/GACEZFX/0EqsaAwUQ+qYQTcNUxHDkFApVYPZLBra10LMa74BBswKKH82UNsbdSTR2kBzbNDVvA+rAeyfAl8M=
   on:
     tags: true
     repo: grahamwetzler/smart_meter_texas
