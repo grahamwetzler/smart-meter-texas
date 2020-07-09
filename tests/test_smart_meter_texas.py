@@ -5,7 +5,7 @@
 import pytest
 
 
-from smart_meter_texas import smart_meter_texas
+from smart_meter_texas import async_api
 
 
 @pytest.fixture
