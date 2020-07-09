@@ -23,10 +23,13 @@ Package to connect to and retrieve data from the unoffical Smart Meter Texas API
 * Documentation: https://smart-meter-texas.readthedocs.io.
 
 
-Features
+Install
 --------
+To install:
 
-* TODO
+.. code-block:: bash
+
+  $ pip install smart-meter-texas
 
 Credits
 -------
