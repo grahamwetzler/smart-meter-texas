@@ -24,7 +24,7 @@ class Auth:
         self.default_timeout = default_timeout
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;\
-                 rv:77.0) Gecko/20100101 Firefox/77.0",
+rv:77.0) Gecko/20100101 Firefox/77.0",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
