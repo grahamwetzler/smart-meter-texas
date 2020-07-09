@@ -5,10 +5,10 @@ import aiohttp
 
 from smart_meter_texas.async_api import Auth, Meter
 
-username = os.environ["smtuser"]
-password = os.environ["smtpw"]
-meter_num = os.environ["smtmeter"]
-esiid = os.environ["smtesiid"]
+username = os.environ["SMTUSER"]
+password = os.environ["SMTPW"]
+meter_num = os.environ["SMTMETER"]
+esiid = os.environ["SMTESIID"]
 
 
 async def main():
