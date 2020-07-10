@@ -9,12 +9,6 @@ Smart Meter Texas
 .. image:: https://img.shields.io/travis/grahamwetzler/smart-meter-texas.svg
         :target: https://travis-ci.com/grahamwetzler/smart-meter-texas
 
-.. image:: https://readthedocs.org/projects/smart-meter-texas/badge/?version=latest
-        :target: https://smart-meter-texas.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-
-
 
 Package to connect to and retrieve data from the unoffical Smart Meter Texas API
 
