@@ -21,7 +21,7 @@ async def main():
         print("Authenicating...")
         await auth.authenticate()
 
-        print("Reading meter...")
+        print("Reading meter (takes about 30s)...")
         meter = Meter(auth, esiid, meter_num)
         await meter.async_read_meter()
 
