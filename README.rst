@@ -10,11 +10,12 @@ Smart Meter Texas
         :target: https://travis-ci.com/grahamwetzler/smart-meter-texas
 
 
-Package to connect to and retrieve data from the unoffical Smart Meter Texas API
+Package to asynchronously connect to and retrieve data from the unofficial Smart Meter Texas API using aiohttp.
+
+Currently only obtaining the current meter reading is implemented. There are serval other API endpoints that are not implemented in this package.
 
 
 * Free software: MIT license
-* Documentation: https://smart-meter-texas.readthedocs.io.
 
 
 Install
