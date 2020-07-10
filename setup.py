@@ -27,7 +27,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    description="Package to connect to and retrieve data from the unoffical \
+    description="Package to connect to and retrieve data from the unofficial \
         Smart Meter Texas API",
     install_requires=requirements,
     license="MIT license",
