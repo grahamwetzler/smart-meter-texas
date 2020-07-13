@@ -35,7 +35,7 @@ setup(
     include_package_data=True,
     keywords="smart_meter_texas",
     name="smart_meter_texas",
-    packages=find_packages(  # no-fmt
+    packages=find_packages(  # fmt: off
         include=["smart_meter_texas", "smart_meter_texas.*"]
     ),
     setup_requires=setup_requirements,
