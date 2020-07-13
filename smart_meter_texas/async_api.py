@@ -52,10 +52,13 @@ rv:77.0) Gecko/20100101 Firefox/77.0",
             timeout=self.default_timeout,
         )
 
-        if resp.status != 200:
-            raise SMTError()
-
         json_response = await resp.json()
+
+        if resp.status != 200:
+            raise SMTError(  # fmt: off
+                "Error connecting: {errormessage}".format(**json_response)
+            )
+
         await self._set_token(json_response["token"])
 
         return self.websession
