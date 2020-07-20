@@ -8,8 +8,6 @@ from smart_meter_texas.async_api import Auth, Meter
 
 username = os.environ["SMTUSER"]
 password = os.environ["SMTPW"]
-meter_num = os.environ["SMTMETER"]
-esiid = os.environ["SMTESIID"]
 
 timezone = pytz.timezone("America/Chicago")
 
@@ -21,8 +19,13 @@ async def main():
         print("Authenicating...")
         await auth.authenticate()
 
+        meter = Meter(auth)
+        await meter.read_dashboard()
+        print(f"Meter: {meter.meter}")
+        print(f"ESIID: {meter.esiid}")
+        print(f"Address: {meter.address}")
+
         print("Reading meter (takes about 30s)...")
-        meter = Meter(auth, esiid, meter_num)
         await meter.async_read_meter()
 
         localized_time = meter.reading_datetime.astimezone(timezone)

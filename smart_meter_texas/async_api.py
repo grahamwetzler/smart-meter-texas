@@ -65,12 +65,32 @@ rv:77.0) Gecko/20100101 Firefox/77.0",
 class Meter:
     """Class representation of a smart meter."""
 
-    def __init__(self, auth: Auth, esiid: str, meter: str) -> None:
+    def __init__(self, auth: Auth, esiid: str = None, meter: str = None) -> None:
         self.auth = auth.websession
         self.headers = auth.headers
         self.esiid = esiid
         self.meter = meter
+        self._address = None
         self._reading_data = None
+
+    async def _get_dashboard(self) -> ClientResponse.json:
+        resp = await self.auth.request(
+            "post",
+            f"{URL}/api/dashboard",
+            headers=self.headers,
+            timeout=DEFAULT_TIMEOUT,
+        )
+        return await resp.json()
+
+    async def read_dashboard(self) -> None:
+        resp = await self._get_dashboard()
+
+        data = resp.get("data")
+        meter_details = data.get("defaultMeterDetails")
+
+        self._address = meter_details.get("address")
+        self.meter = meter_details.get("meterNumber")
+        self.esiid = meter_details.get("esiid")
 
     async def _request_odr(self) -> ClientResponse.json:
         resp = await self.auth.request(
@@ -120,6 +140,11 @@ class Meter:
         return dateutil.parser.parse(self._reading_data["odrdate"]).astimezone(
             tz=datetime.timezone.utc
         )
+
+    @property
+    def address(self) -> str:
+        """Return the address associated with the meter."""
+        return self._address
 
 
 class SMTError(Exception):
