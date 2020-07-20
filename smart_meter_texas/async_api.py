@@ -137,9 +137,9 @@ class Meter:
     @property
     def reading_datetime(self) -> datetime.datetime:
         """Return the time of the latest reading."""
-        return dateutil.parser.parse(self._reading_data["odrdate"]).astimezone(
-            tz=datetime.timezone.utc
-        )
+        _date = dateutil.parser.parse(self._reading_data["odrdate"])
+        _date_as_utc = _date.astimezone(datetime.timezone.utc)
+        return _date_as_utc
 
     @property
     def address(self) -> str:
