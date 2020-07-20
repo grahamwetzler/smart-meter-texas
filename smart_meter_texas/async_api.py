@@ -23,8 +23,10 @@ class Auth:
         self.password = password
         self.default_timeout = default_timeout
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;\
-rv:77.0) Gecko/20100101 Firefox/77.0",
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;"
+                "rv:77.0) Gecko/20100101 Firefox/77.0"
+            ),
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
@@ -148,4 +150,8 @@ class Meter:
 
 
 class SMTError(Exception):
+    pass
+
+
+class SMTLoginError(SMTError):
     pass
