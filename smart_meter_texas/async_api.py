@@ -9,6 +9,8 @@ URL = "https://www.smartmetertexas.com/"
 DEFAULT_TIMEOUT = 15
 ON_DEMAND_READ_RETRY_TIME = 15
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Auth:
     def __init__(
@@ -54,7 +56,7 @@ class Auth:
         json_response = await resp.json()
 
         if json_response.get("errormessage") or resp.status != 200:
-            logging.error(
+            _LOGGER.error(
                 "Error authenticating: %s" % json_response.get("errormessage", "")
             )
             raise SMTError
@@ -108,7 +110,7 @@ class Meter:
             status = data.get("odrstatus")
             status_reason = data.get("statusReason")
             if status_reason:
-                logging.debug(reading)
+                _LOGGER.debug(reading)
 
             if status == "PENDING":
                 await asyncio.sleep(ON_DEMAND_READ_RETRY_TIME)
