@@ -34,24 +34,21 @@ class Auth:
     async def _set_token(self, token: str) -> None:
         self.headers["Authorization"] = f"Bearer {token}"
 
-    async def _initalize_websession(self) -> None:
-        """Initalizes the websesion by making an inital connection."""
-        await self.websession.request(
-            "get", URL, headers=self.headers, timeout=self.default_timeout
-        )
-
     async def authenticate(self) -> ClientSession:
-        await self._initalize_websession()
-        resp = await self.websession.request(
-            "post",
-            f"{URL}api/user/authenticate",
+
+        # Make an inital GET request otherwise subsequent calls will timeout
+        await api_request(
+            self.websession, method="get", headers=self.headers,
+        )
+        resp = await api_request(
+            self.websession,
+            "api/user/authenticate",
             json={
                 "username": self.username,
                 "password": self.password,
                 "rememberMe": "true",
             },
             headers=self.headers,
-            timeout=self.default_timeout,
         )
 
         json_response = await resp.json()
@@ -76,12 +73,7 @@ class Meter:
         self._reading_data = None
 
     async def _get_dashboard(self) -> ClientResponse.json:
-        resp = await self.auth.request(
-            "post",
-            f"{URL}/api/dashboard",
-            headers=self.headers,
-            timeout=DEFAULT_TIMEOUT,
-        )
+        resp = await api_request(self.auth, "api/dashboard", headers=self.headers,)
         return await resp.json()
 
     async def read_dashboard(self) -> None:
@@ -94,39 +86,31 @@ class Meter:
         self.meter = meter_details.get("meterNumber")
         self.esiid = meter_details.get("esiid")
 
-    async def _request_odr(self) -> ClientResponse.json:
-        resp = await self.auth.request(
-            "post",
-            f"{URL}/api/ondemandread",
+    async def async_read_meter(self) -> None:
+        await api_request(
+            self.auth,
+            "/api/ondemandread",
             json={"ESIID": self.esiid, "MeterNumber": self.meter},
             headers=self.headers,
-            timeout=DEFAULT_TIMEOUT,
         )
-        return await resp.json()
-
-    async def _get_latest_odr(self) -> ClientResponse.json:
-        resp = await self.auth.request(
-            "post",
-            f"{URL}api/usage/latestodrread",
-            json={"ESIID": self.esiid},
-            headers=self.headers,
-            timeout=DEFAULT_TIMEOUT,
-        )
-        return await resp.json()
-
-    async def async_read_meter(self) -> None:
-        await self._request_odr()
         while True:
-            reading = await self._get_latest_odr()
-            status = reading.get("data").get("odrstatus")
-            status_reason = reading.get("data").get("statusReason")
+            reading = await api_request(
+                self.auth,
+                "api/usage/latestodrread",
+                json={"ESIID": self.esiid},
+                headers=self.headers,
+            )
+            json_response = await reading.json()
+            data = json_response.get("data")
+            status = data.get("odrstatus")
+            status_reason = data.get("statusReason")
             if status_reason:
                 logging.debug(reading)
 
             if status == "PENDING":
                 await asyncio.sleep(ON_DEMAND_READ_RETRY_TIME)
             elif status == "COMPLETED":
-                self._reading_data = reading["data"]
+                self._reading_data = json_response["data"]
                 break
             else:
                 raise SMTError(reading)
@@ -153,5 +137,17 @@ class SMTError(Exception):
     pass
 
 
-class SMTLoginError(SMTError):
-    pass
+async def api_request(
+    websession: ClientSession,
+    path: str = "",
+    method: str = "post",
+    timeout: int = DEFAULT_TIMEOUT,
+    **kwargs,
+) -> ClientResponse.json:
+    return await websession.request(
+        method,
+        f"{URL}{path}",
+        json=kwargs.get("json"),
+        headers=kwargs.get("headers"),
+        timeout=timeout,
+    )
