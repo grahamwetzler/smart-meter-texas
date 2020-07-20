@@ -8,6 +8,10 @@ from aiohttp import ClientResponse, ClientSession
 URL = "https://www.smartmetertexas.com/"
 DEFAULT_TIMEOUT = 15
 ON_DEMAND_READ_RETRY_TIME = 15
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;"
+    "rv:77.0) Gecko/20100101 Firefox/77.0"
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,10 +29,7 @@ class Auth:
         self.password = password
         self.default_timeout = default_timeout
         self.headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;"
-                "rv:77.0) Gecko/20100101 Firefox/77.0"
-            ),
+            "User-Agent": USER_AGENT,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
