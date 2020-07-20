@@ -53,8 +53,11 @@ class Auth:
 
         json_response = await resp.json()
 
-        if resp.status != 200:
-            raise SMTError("Error connecting: {errormessage}".format(**json_response))
+        if json_response.get("errormessage") or resp.status != 200:
+            logging.error(
+                "Error authenticating: %s" % json_response.get("errormessage", "")
+            )
+            raise SMTError
 
         await self._set_token(json_response["token"])
 
