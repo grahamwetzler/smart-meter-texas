@@ -1,10 +1,14 @@
 import asyncio
+import logging
 import os
+import sys
 
 import aiohttp
 import pytz
 
 from smart_meter_texas.async_api import SMTMeterReader
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 username = os.environ["SMTUSER"]
 password = os.environ["SMTPW"]
@@ -16,7 +20,7 @@ async def main():
     async with aiohttp.ClientSession() as websession:
         meter = SMTMeterReader(websession, username, password)
 
-        print("Authenicating...")
+        print("Authenticating...")
         await meter.authenticate()
 
         await meter.read_dashboard()
