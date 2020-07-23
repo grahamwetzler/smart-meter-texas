@@ -1,4 +1,9 @@
-URL = "https://www.smartmetertexas.com/"
+BASE_URL = "https://www.smartmetertexas.com/"
+BASE_ENDPOINT = BASE_URL + "api"
+AUTH_ENDPOINT = "/user/authenticate"
+DASHBOARD_ENDPOINT = "/dashboard"
+OD_READ_ENDPOINT = "/ondemandread"
+LATEST_OD_READ_ENDPOINT = "/usage/latestodrread"
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14;"
@@ -14,4 +19,4 @@ API_ERROR_RESPONSES = {
     "ERR-USR-INVALIDPASSWORDERROR": "password is not correct",
 }
 
-ON_DEMAND_READ_RETRY_TIME = 15
+OD_READ_RETRY_TIME = 15

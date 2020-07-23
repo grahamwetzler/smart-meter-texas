@@ -6,11 +6,16 @@ import dateutil.parser
 from aiohttp import ClientResponse, ClientResponseError, ClientSession
 
 from .const import (
-    ON_DEMAND_READ_RETRY_TIME,
     API_ERROR_KEY,
+    AUTH_ENDPOINT,
+    BASE_ENDPOINT,
+    BASE_URL,
+    DASHBOARD_ENDPOINT,
+    LATEST_OD_READ_ENDPOINT,
+    OD_READ_ENDPOINT,
+    OD_READ_RETRY_TIME,
     TOKEN_EXPIRED_KEY,
     TOKEN_EXPIRED_VALUE,
-    URL,
     USER_AGENT,
 )
 
@@ -39,7 +44,7 @@ class SMTMeterReader:
         self, websession: ClientSession, path: str = "", method: str = "post", **kwargs,
     ) -> ClientResponse.json:
         try:
-            resp = await websession.request(method, f"{URL}{path}", **kwargs)
+            resp = await websession.request(method, f"{BASE_ENDPOINT}{path}", **kwargs)
         except ClientResponseError as e:
             _LOGGER.error("Server responded with error %s", e.status)
         else:
@@ -65,13 +70,13 @@ class SMTMeterReader:
 
     async def _get_dashboard(self) -> ClientResponse.json:
         json_response = await self._api_request(
-            self.websession, "api/dashboard", headers=self.headers,
+            self.websession, DASHBOARD_ENDPOINT, headers=self.headers,
         )
         return json_response
 
     async def _initalize_websession(self) -> None:
         """Initializes the websession by making an initial connection."""
-        await self.websession.request("get", URL, headers=self.headers)
+        await self.websession.request("get", BASE_URL, headers=self.headers)
 
     async def authenticate(self) -> ClientSession:
 
@@ -82,7 +87,7 @@ class SMTMeterReader:
 
         json_response = await self._api_request(
             self.websession,
-            "api/user/authenticate",
+            AUTH_ENDPOINT,
             json={
                 "username": self.username,
                 "password": self.password,
@@ -112,7 +117,7 @@ class SMTMeterReader:
 
         await self._api_request(
             self.websession,
-            "/api/ondemandread",
+            OD_READ_ENDPOINT,
             json={"ESIID": self.esiid, "MeterNumber": self.meter},
             headers=self.headers,
         )
@@ -120,7 +125,7 @@ class SMTMeterReader:
         while True:
             json_response = await self._api_request(
                 self.websession,
-                "api/usage/latestodrread",
+                LATEST_OD_READ_ENDPOINT,
                 json={"ESIID": self.esiid},
                 headers=self.headers,
             )
@@ -133,7 +138,7 @@ class SMTMeterReader:
             _LOGGER.debug("Meter reading %s", status)
 
             if status == "PENDING":
-                await asyncio.sleep(ON_DEMAND_READ_RETRY_TIME)
+                await asyncio.sleep(OD_READ_RETRY_TIME)
             elif status == "COMPLETED":
                 self._reading_data = json_response["data"]
                 break
