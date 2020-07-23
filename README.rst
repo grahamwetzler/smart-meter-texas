@@ -12,7 +12,7 @@ Smart Meter Texas
 
 Package to asynchronously connect to and retrieve data from the unofficial Smart Meter Texas API using aiohttp.
 
-Currently only obtaining the current meter reading is implemented. There are serval other API endpoints that are not implemented in this package.
+Currently only obtaining the dashboard and current meter reading are implemented. There are serval other API endpoints that are not implemented in this package.
 
 
 * Free software: MIT license
