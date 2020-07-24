@@ -1,6 +1,8 @@
 import asyncio
 import datetime
+import functools
 import logging
+from typing import Awaitable, Dict
 
 import dateutil.parser
 from aiohttp import ClientResponse, ClientResponseError, ClientSession
@@ -40,34 +42,46 @@ class SMTMeterReader:
         self._reading_data = None
         self.login_failure_count = 0
 
+    def _auth_required(func: Awaitable) -> Awaitable:
+        """Decorator function to handle authentication errors and expired
+        login tokens."""
+
+        @functools.wraps(func)
+        async def auth_func(self, *args, **kwargs):
+            json_response = await func(self, *args, **kwargs)
+            self.raise_for_auth_error(json_response)
+
+            if json_response.get(TOKEN_EXPIRED_KEY) == TOKEN_EXPIRED_VALUE:
+                _LOGGER.debug("Login token expired")
+                await self.authenticate()
+                return func(self, *args, **kwargs)
+
+            return json_response
+
+        return auth_func
+
     async def _api_request(
         self, websession: ClientSession, path: str = "", method: str = "post", **kwargs,
     ) -> ClientResponse.json:
         try:
             resp = await websession.request(method, f"{BASE_ENDPOINT}{path}", **kwargs)
         except ClientResponseError as e:
-            _LOGGER.error("Server responded with error %s", e.status)
+            _LOGGER.error("Server responded with error code %s", e.status)
         else:
             json_response = await resp.json()
-            auth_error = json_response.get(API_ERROR_KEY)
-            if auth_error:
-                _LOGGER.error("API returned error: %s", auth_error)
-                raise SMTAuthError(f"Login failed: {auth_error}")
-            elif json_response.get(TOKEN_EXPIRED_KEY) == TOKEN_EXPIRED_VALUE:
-                _LOGGER.debug("Login token expired")
-                _LOGGER.warning("Login has failed %s time(s)", self.login_failure_count)
-                if self.login_failure_count >= 2:
-                    raise SMTAuthError
-                else:
-                    self.login_failure_count += 1
-
-                self.authenticate()
-
+            self.raise_for_auth_error(json_response)
             return json_response
+
+    def raise_for_auth_error(self, resp: Dict[str, object]) -> None:
+        auth_error = resp.get(API_ERROR_KEY)
+        if auth_error:
+            _LOGGER.error("API returned error: %s", auth_error)
+            raise SMTAuthError(f"Login failed: {auth_error}")
 
     async def _set_token(self, token: str) -> None:
         self.headers["Authorization"] = f"Bearer {token}"
 
+    @_auth_required
     async def _get_dashboard(self) -> ClientResponse.json:
         json_response = await self._api_request(
             self.websession, DASHBOARD_ENDPOINT, headers=self.headers,
@@ -78,7 +92,7 @@ class SMTMeterReader:
         """Initializes the websession by making an initial connection."""
         await self.websession.request("get", BASE_URL, headers=self.headers)
 
-    async def authenticate(self) -> ClientSession:
+    async def authenticate(self) -> None:
 
         _LOGGER.debug("Requesting login token")
 
@@ -99,8 +113,6 @@ class SMTMeterReader:
         await self._set_token(json_response["token"])
         _LOGGER.debug("Successfully retrieved token")
 
-        return self.websession
-
     async def read_dashboard(self) -> None:
         resp = await self._get_dashboard()
 
@@ -111,7 +123,8 @@ class SMTMeterReader:
         self.meter = meter_details.get("meterNumber")
         self.esiid = meter_details.get("esiid")
 
-    async def read_meter(self) -> None:
+    @_auth_required
+    async def read_meter(self) -> ClientResponse.json:
 
         _LOGGER.debug("Requesting meter reading")
 
@@ -138,10 +151,12 @@ class SMTMeterReader:
             _LOGGER.debug("Meter reading %s", status)
 
             if status == "PENDING":
+                _LOGGER.debug("Sleeping for %s seconds", OD_READ_RETRY_TIME)
                 await asyncio.sleep(OD_READ_RETRY_TIME)
             elif status == "COMPLETED":
                 self._reading_data = json_response["data"]
-                break
+                _LOGGER.debug("Reading completed: %s", self._reading_data)
+                return json_response
 
     @property
     def reading(self) -> float:
