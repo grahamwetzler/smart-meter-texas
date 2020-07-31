@@ -56,7 +56,7 @@ toml==0.10.1
 tornado==6.0.4
 tox==3.18.1
 urllib3==1.25.10
-virtualenv==20.0.28
+virtualenv==20.0.29
 watchdog==0.10.3
 wcwidth==0.2.5
 yarl==1.5.0
