@@ -6,5 +6,9 @@ class SmartMeterTexasAuthError(SmartMeterTexasException):
     ...
 
 
+class SmartMeterTexasAuthExpired(SmartMeterTexasException):
+    ...
+
+
 class SmartMeterTexasAPIError(SmartMeterTexasException):
     ...

@@ -6,6 +6,7 @@ import logging
 
 import dateutil
 from aiohttp import ClientSession
+from tenacity import retry, retry_if_exception_type
 
 from .const import (
     AUTH_ENDPOINT,
@@ -19,7 +20,11 @@ from .const import (
     TOKEN_EXPRIATION,
     USER_AGENT,
 )
-from .exceptions import SmartMeterTexasAPIError, SmartMeterTexasAuthError
+from .exceptions import (
+    SmartMeterTexasAPIError,
+    SmartMeterTexasAuthError,
+    SmartMeterTexasAuthExpired,
+)
 
 __author__ = "Graham Wetzler"
 __email__ = "graham@wetzler.dev"
@@ -117,6 +122,7 @@ class Client:
         future POST requests will timeout."""
         await self.websession.get(BASE_URL, headers={"User-Agent": USER_AGENT})
 
+    @retry(retry=retry_if_exception_type(SmartMeterTexasAuthExpired))
     async def request(
         self, path: str, method: str = "post", **kwargs,
     ):
@@ -125,9 +131,10 @@ class Client:
             method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs
         )
         if resp.status == 401:
-            _LOGGER.debug("Authentication token expired")
+            _LOGGER.debug("Authentication token expired; requesting new token")
             self.authenticated = False
-            self.authenticate()
+            await self.authenticate()
+            raise SmartMeterTexasAuthExpired
         elif resp.status == 400:
             raise SmartMeterTexasAuthError("Username or password was not accepted")
 
