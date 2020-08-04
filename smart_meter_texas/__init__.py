@@ -113,7 +113,7 @@ class Client:
     def __init__(self, websession: ClientSession, account: "Account"):
         self.websession = websession
         self.account = account
-        self.headers = {**CLIENT_HEADERS}
+        self.token = None
         self.authenticated = False
         self.token_expiration = datetime.datetime.now()
 
@@ -158,6 +158,13 @@ class Client:
                 },
             )
 
-            self.headers["Authorization"] = f"Bearer {json_response['token']}"
+            self.token = json_response["token"]
             self.authenticated = True
             _LOGGER.debug("Successfully retrieved token")
+
+    @property
+    def headers(self):
+        headers = {**CLIENT_HEADERS}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
