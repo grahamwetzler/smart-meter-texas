@@ -126,7 +126,7 @@ class Client:
     async def request(
         self, path: str, method: str = "post", **kwargs,
     ):
-        """Helper method to make API calls agains the SMT API."""
+        """Helper method to make API calls against the SMT API."""
         resp = await self.websession.request(
             method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs
         )
