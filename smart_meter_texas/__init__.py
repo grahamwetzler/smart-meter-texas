@@ -122,11 +122,15 @@ class Client:
         future POST requests will timeout."""
         await self.websession.get(BASE_URL, headers={"User-Agent": USER_AGENT})
 
+    def _update_token_expiration(self):
+        self.token_expiration = datetime.datetime.now() + TOKEN_EXPRIATION
+
     @retry(retry=retry_if_exception_type(SmartMeterTexasAuthExpired))
     async def request(
         self, path: str, method: str = "post", **kwargs,
     ):
         """Helper method to make API calls against the SMT API."""
+        await self.authenticate()
         resp = await self.websession.request(
             method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs
         )
@@ -138,29 +142,35 @@ class Client:
         elif resp.status == 400:
             raise SmartMeterTexasAuthError("Username or password was not accepted")
 
-        self.token_expiration = datetime.datetime.now() + TOKEN_EXPRIATION
+        # Since API call did not return a 400 code, update the token_expiration.
+        self._update_token_expiration()
+
         json_response = await resp.json()
         return json_response
 
     async def authenticate(self):
-        if not self.authenticated:
+        if not self.token_valid:
             _LOGGER.debug("Requesting login token")
 
             # Make an initial GET request otherwise subsequent calls will timeout.
             await self._init_websession()
 
-            json_response = await self.request(
-                AUTH_ENDPOINT,
+            resp = await self.websession.request(
+                "POST",
+                f"{BASE_ENDPOINT}{AUTH_ENDPOINT}",
                 json={
                     "username": self.account.username,
                     "password": self.account.password,
                     "rememberMe": "true",
                 },
+                headers=self.headers,
             )
+            json_response = await resp.json()
 
             self.token = json_response["token"]
+            self._update_token_expiration()
             self.authenticated = True
-            _LOGGER.debug("Successfully retrieved token")
+            _LOGGER.debug("Successfully retrieved login token")
 
     @property
     def headers(self):
@@ -168,3 +178,10 @@ class Client:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
+
+    @property
+    def token_valid(self):
+        if self.authenticated or (datetime.datetime.now() < self.token_expiration):
+            return True
+
+        return False
