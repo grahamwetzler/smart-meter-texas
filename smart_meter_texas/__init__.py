@@ -168,7 +168,12 @@ class Client:
             if resp.status == 400:
                 raise SmartMeterTexasAuthError("Username or password was not accepted")
 
-            self.token = json_response["token"]
+            try:
+                self.token = json_response["token"]
+            except KeyError:
+                raise SmartMeterTexasAPIError(
+                    "API returned unknown login json: %s", json_response
+                )
             self._update_token_expiration()
             self.authenticated = True
             _LOGGER.debug("Successfully retrieved login token")
