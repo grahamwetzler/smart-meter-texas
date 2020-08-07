@@ -139,8 +139,6 @@ class Client:
             self.authenticated = False
             await self.authenticate()
             raise SmartMeterTexasAuthExpired
-        elif resp.status == 400:
-            raise SmartMeterTexasAuthError("Username or password was not accepted")
 
         # Since API call did not return a 400 code, update the token_expiration.
         self._update_token_expiration()
@@ -166,6 +164,9 @@ class Client:
                 headers=self.headers,
             )
             json_response = await resp.json()
+
+            if resp.status == 400:
+                raise SmartMeterTexasAuthError("Username or password was not accepted")
 
             self.token = json_response["token"]
             self._update_token_expiration()
