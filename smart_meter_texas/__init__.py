@@ -28,7 +28,7 @@ from .exceptions import (
 
 __author__ = "Graham Wetzler"
 __email__ = "graham@wetzler.dev"
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 
 _LOGGER = logging.getLogger(__name__)
