@@ -23,6 +23,7 @@ from .const import (
 from .exceptions import (
     SmartMeterTexasAPIError,
     SmartMeterTexasAuthError,
+    SmartMeterTexasRateLimitError,
     SmartMeterTexasAuthExpired,
 )
 
@@ -163,10 +164,16 @@ class Client:
                 },
                 headers=self.headers,
             )
-            json_response = await resp.json()
 
             if resp.status == 400:
                 raise SmartMeterTexasAuthError("Username or password was not accepted")
+
+            if resp.status == 403:
+                raise SmartMeterTexasRateLimitError(
+                    "Reached ratelimit or brute force protection"
+                )
+
+            json_response = await resp.json()
 
             try:
                 self.token = json_response["token"]

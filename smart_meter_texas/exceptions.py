@@ -11,6 +11,13 @@ class SmartMeterTexasAuthError(SmartMeterTexasException):
     ...
 
 
+class SmartMeterTexasRateLimitError(SmartMeterTexasException):
+    """Exception for reaching the ratelimit.
+    Either too many login attempts or too many requests."""
+
+    ...
+
+
 class SmartMeterTexasAuthExpired(SmartMeterTexasException):
     """Exception for when a token is no longer valid."""
 
