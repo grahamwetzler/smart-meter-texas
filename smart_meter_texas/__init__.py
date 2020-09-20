@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+from random import randrange
 
 import dateutil
 from aiohttp import ClientSession
@@ -18,7 +19,7 @@ from .const import (
     OD_READ_ENDPOINT,
     OD_READ_RETRY_TIME,
     TOKEN_EXPRIATION,
-    USER_AGENT,
+    USER_AGENT_TEMPLATE,
 )
 from .exceptions import (
     SmartMeterTexasAPIError,
@@ -117,11 +118,21 @@ class Client:
         self.token = None
         self.authenticated = False
         self.token_expiration = datetime.datetime.now()
+        self.user_agent = None
 
     async def _init_websession(self):
         """Make an initial GET request to initialize the session otherwise
         future POST requests will timeout."""
-        await self.websession.get(BASE_URL, headers={"User-Agent": USER_AGENT})
+        await self.websession.get(BASE_URL, headers=self._agent_headers())
+
+    def _agent_headers(self):
+        """Build the user agent header."""
+        if not self.user_agent:
+            self.user_agent = USER_AGENT_TEMPLATE.format(
+                BUILD=randrange(1001, 9999), REV=randrange(12, 999)
+            )
+
+        return {"User-Agent": self.user_agent}
 
     def _update_token_expiration(self):
         self.token_expiration = datetime.datetime.now() + TOKEN_EXPRIATION
@@ -187,7 +198,7 @@ class Client:
 
     @property
     def headers(self):
-        headers = {**CLIENT_HEADERS}
+        headers = {**self._agent_headers(), **CLIENT_HEADERS}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
