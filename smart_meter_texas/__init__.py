@@ -30,7 +30,7 @@ from .exceptions import (
 
 __author__ = "Graham Wetzler"
 __email__ = "graham@wetzler.dev"
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 
 _LOGGER = logging.getLogger(__name__)
