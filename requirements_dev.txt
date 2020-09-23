@@ -62,4 +62,4 @@ urllib3==1.25.10
 virtualenv==20.0.31
 watchdog==0.10.3
 wcwidth==0.2.5
-yarl==1.5.1
+yarl==1.6.0
