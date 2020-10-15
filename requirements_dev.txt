@@ -18,7 +18,7 @@ filelock==3.0.12
 flake8==3.8.3
 idna==2.10
 imagesize==1.2.0
-iniconfig==1.0.1
+iniconfig==1.1.1
 Jinja2==2.11.2
 jinja2-time==0.2.0
 livereload==2.6.3
