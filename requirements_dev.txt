@@ -31,7 +31,7 @@ pathtools==0.1.2
 pluggy==0.13.1
 port-for==0.4
 poyo==0.5.0
-py==1.9.0
+py==1.10.0
 pycodestyle==2.6.0
 pyflakes==2.2.0
 Pygments==2.7.1
