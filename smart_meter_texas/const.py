@@ -1,6 +1,6 @@
 import datetime
 
-BASE_URL = "https://www.smartmetertexas.com/"
+BASE_URL = "https://smartmetertexas.com/"
 BASE_ENDPOINT = BASE_URL + "api"
 AUTH_ENDPOINT = "/user/authenticate"
 DASHBOARD_ENDPOINT = "/dashboard"
