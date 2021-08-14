@@ -69,8 +69,8 @@ finally:
     _lookupDerCertBin = _wrappedLookupSock.getpeercert(binary_form=True)
     #_lookupPemCert = ssl.DER_cert_to_PEM_cert(_wrappedLookupSock.getpeercert(True))
     _smt_current_fingerprint = hashlib.sha256(_lookupDerCertBin).digest()
-    print("Known SSL Certificate SHA256 Fingerprint" + _smt_known_fingerprint.hex())
-    print("Current SSL Certificate SHA256 Fingerprint" + _smt_current_fingerprint.hex())
+    print("Known SSL Certificate SHA256 Fingerprint: " + _smt_known_fingerprint.hex())
+    print("Current SSL Certificate SHA256 Fingerprint: " + _smt_current_fingerprint.hex())
 
 
 class Meter:
