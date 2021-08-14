@@ -6,7 +6,9 @@ import logging
 from random import randrange
 
 import dateutil
-from aiohttp import ClientSession
+import certifi
+import ssl
+from aiohttp import ClientSession, Fingerprint
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
@@ -35,6 +37,10 @@ __version__ = "0.4.4"
 
 _LOGGER = logging.getLogger(__name__)
 
+# This is the SSL fingerprint for smartmetertexas.com as of 2021-08-14T01:35:00-05:00
+# This logic will toggle the use of the fingerprint for SSL validation until it expires on 2021-10-14T12:00:00-00:00
+_smt_fingerprint = b'\x39\x3B\x70\xA0\xD8\xF9\x01\x83\x36\x3F\x89\xB0\x31\x30\x90\xE6\xB9\xC8\xD1\x3B\xFD\xB7\x05\xA1\x05\x53\xE4\xA5\xD8\x92\x91\xF3'
+_smt_fingerprint_expires = datetime.datetime(2021, 10, 14, 12, 0, 0, 0, datetime.timezone(datetime.timedelta(hours=0), name="GMT"))
 
 class Meter:
     def __init__(self, meter: str, esiid: str, address: str):
@@ -119,11 +125,24 @@ class Client:
         self.authenticated = False
         self.token_expiration = datetime.datetime.now()
         self.user_agent = None
+        self.sslcontext = None
+
+    def _init_sslcontext(self):
+        # Check if known fingerprint is expired
+        if datetime.datetime.utcnow().timestamp() < _smt_fingerprint_expires.timestamp():
+            _LOGGER.debug("Proceeding with known SSL fingerprint until " + _smt_fingerprint_expires.isoformat())
+            self.sslcontext = Fingerprint(_smt_fingerprint)
+        else:
+            _LOGGER.debug("Proceeding with normal SSL logic")
+            self.sslcontext = ssl.create_default_context(certifi.where())
+            # Force TLSv1_2 and TLSv1_3
+            self.sslcontext.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
 
     async def _init_websession(self):
         """Make an initial GET request to initialize the session otherwise
         future POST requests will timeout."""
-        await self.websession.get(BASE_URL, headers=self._agent_headers())
+        self._init_sslcontext()
+        await self.websession.get(BASE_URL, headers=self._agent_headers(), ssl=self.sslcontext)
 
     def _agent_headers(self):
         """Build the user agent header."""
@@ -144,7 +163,7 @@ class Client:
         """Helper method to make API calls against the SMT API."""
         await self.authenticate()
         resp = await self.websession.request(
-            method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs
+            method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs, ssl=self.sslcontext
         )
         if resp.status == 401:
             _LOGGER.debug("Authentication token expired; requesting new token")
@@ -174,6 +193,7 @@ class Client:
                     "rememberMe": "true",
                 },
                 headers=self.headers,
+                ssl=self.sslcontext
             )
 
             if resp.status == 400:
@@ -209,3 +229,4 @@ class Client:
             return True
 
         return False
+
