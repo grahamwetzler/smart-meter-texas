@@ -4,14 +4,18 @@ import asyncio
 import datetime
 import logging
 from random import randrange
+from aiohttp.http import RESPONSES
 
 import dateutil
 import certifi
 import ssl
+import socket
+import hashlib
 from aiohttp import ClientSession, Fingerprint
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
+    BASE_HOSTNAME,
     AUTH_ENDPOINT,
     BASE_ENDPOINT,
     BASE_URL,
@@ -39,8 +43,35 @@ _LOGGER = logging.getLogger(__name__)
 
 # This is the SSL fingerprint for smartmetertexas.com as of 2021-08-14T01:35:00-05:00
 # This logic will toggle the use of the fingerprint for SSL validation until it expires on 2021-10-14T12:00:00-00:00
-_smt_fingerprint = b'\x39\x3B\x70\xA0\xD8\xF9\x01\x83\x36\x3F\x89\xB0\x31\x30\x90\xE6\xB9\xC8\xD1\x3B\xFD\xB7\x05\xA1\x05\x53\xE4\xA5\xD8\x92\x91\xF3'
-_smt_fingerprint_expires = datetime.datetime(2021, 10, 14, 12, 0, 0, 0, datetime.timezone(datetime.timedelta(hours=0), name="GMT"))
+_smt_known_fingerprint = b'\x39\x3B\x70\xA0\xD8\xF9\x01\x83\x36\x3F\x89\xB0\x31\x30\x90\xE6\xB9\xC8\xD1\x3B\xFD\xB7\x05\xA1\x05\x53\xE4\xA5\xD8\x92\x91\xF3'
+_smt_known_fingerprint_expires = datetime.datetime(2021, 10, 14, 12, 0, 0, 0, datetime.timezone(datetime.timedelta(hours=0), name="GMT"))
+
+
+_smt_current_fingerprint = None
+
+_lookupContext = ssl.create_default_context(capath=certifi.where())
+_lookupContext.check_hostname = False
+_lookupContext.verify_mode = ssl.CERT_NONE
+
+_lookupSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+_lookupSock.settimeout(1)
+_wrappedLookupSock = _lookupContext.wrap_socket(_lookupSock)
+
+try:
+    """Attempts to establish an SSL connection as a test."""
+    _wrappedLookupSock.connect((BASE_HOSTNAME, 443))
+except:
+    """The SSL connection failed, likely due to a certificate chain issue."""
+    #Lookup failed
+    pass
+finally:
+    """The SLL connection was successful, determine the current SSL Certificate fingerprint."""
+    _lookupDerCertBin = _wrappedLookupSock.getpeercert(binary_form=True)
+    #_lookupPemCert = ssl.DER_cert_to_PEM_cert(_wrappedLookupSock.getpeercert(True))
+    _smt_current_fingerprint = hashlib.sha256(_lookupDerCertBin).digest()
+    print("Known SSL Certificate SHA256 Fingerprint" + _smt_known_fingerprint.hex())
+    print("Current SSL Certificate SHA256 Fingerprint" + _smt_current_fingerprint.hex())
+
 
 class Meter:
     def __init__(self, meter: str, esiid: str, address: str):
@@ -129,12 +160,12 @@ class Client:
 
     def _init_sslcontext(self):
         # Check if known fingerprint is expired
-        if datetime.datetime.utcnow().timestamp() < _smt_fingerprint_expires.timestamp():
-            _LOGGER.debug("Proceeding with known SSL fingerprint until " + _smt_fingerprint_expires.isoformat())
-            self.sslcontext = Fingerprint(_smt_fingerprint)
+        if ((_smt_current_fingerprint == None or _smt_known_fingerprint.hex() == _smt_current_fingerprint.hex()) and datetime.datetime.utcnow().timestamp() < _smt_known_fingerprint_expires.timestamp()):
+            _LOGGER.debug("Proceeding with known SSL fingerprint until " + _smt_known_fingerprint_expires.isoformat())
+            self.sslcontext = Fingerprint(_smt_known_fingerprint)
         else:
             _LOGGER.debug("Proceeding with normal SSL logic")
-            self.sslcontext = ssl.create_default_context(certifi.where())
+            self.sslcontext = ssl.create_default_context(capath=certifi.where())
             # Force TLSv1_2 and TLSv1_3
             self.sslcontext.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
 
