@@ -113,7 +113,7 @@ class Account:
 
 
 class Client:
-    def __init__(self, websession: ClientSession, account: "Account", sslcontext: None):
+    def __init__(self, websession: ClientSession, account: "Account", sslcontext: ssl.SSLContext):
         self.websession = websession
         self.account = account
         self.token = None
