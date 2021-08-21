@@ -9,13 +9,10 @@ from aiohttp.http import RESPONSES
 import dateutil
 import certifi
 import ssl
-import socket
-import hashlib
-from aiohttp import ClientSession, Fingerprint
+from aiohttp import ClientSession
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
-    BASE_HOSTNAME,
     AUTH_ENDPOINT,
     BASE_ENDPOINT,
     BASE_URL,
@@ -129,15 +126,6 @@ class Client:
         if self.sslcontext == None:
             self.sslcontext = ssl.create_default_context(capath=certifi.where())
             self.sslcontext.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
-        # Check if known fingerprint is expired
-        #if ((_smt_current_fingerprint == None or _smt_known_fingerprint.hex() == _smt_current_fingerprint.hex()) and datetime.datetime.utcnow().timestamp() < _smt_known_fingerprint_expires.timestamp()):
-        #    _LOGGER.debug("Proceeding with known SSL fingerprint until " + _smt_known_fingerprint_expires.isoformat())
-        #    self.sslcontext = Fingerprint(_smt_known_fingerprint)
-        #else:
-        #    _LOGGER.debug("Proceeding with normal SSL logic")
-        #    self.sslcontext = ssl.create_default_context(capath=certifi.where())
-        #    # Force TLSv1_2 and TLSv1_3
-        #    self.sslcontext.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
 
     async def _init_websession(self):
         """Make an initial GET request to initialize the session otherwise
