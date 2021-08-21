@@ -6,6 +6,7 @@ import os
 import sys
 
 import aiohttp
+import get_ssl_context as get_ssl
 
 from smart_meter_texas import Account, Client
 
@@ -16,9 +17,12 @@ password = os.environ["SMTPW"]
 
 
 async def main():
+
+    context = get_ssl.get_ssl_context()
+
     async with aiohttp.ClientSession() as websession:
         account = Account(username, password)
-        client = Client(websession, account)
+        client = Client(websession, account, ssl_context=context)
         await client.authenticate()
         meters = await account.fetch_meters(client)
 

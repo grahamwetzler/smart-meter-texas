@@ -3,30 +3,20 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import ssl
 from random import randrange
 
+import certifi
 import dateutil
 from aiohttp import ClientSession
 from tenacity import retry, retry_if_exception_type
 
-from .const import (
-    AUTH_ENDPOINT,
-    BASE_ENDPOINT,
-    BASE_URL,
-    CLIENT_HEADERS,
-    LATEST_OD_READ_ENDPOINT,
-    METER_ENDPOINT,
-    OD_READ_ENDPOINT,
-    OD_READ_RETRY_TIME,
-    TOKEN_EXPRIATION,
-    USER_AGENT_TEMPLATE,
-)
-from .exceptions import (
-    SmartMeterTexasAPIError,
-    SmartMeterTexasAuthError,
-    SmartMeterTexasRateLimitError,
-    SmartMeterTexasAuthExpired,
-)
+from .const import (AUTH_ENDPOINT, BASE_ENDPOINT, BASE_URL, CLIENT_HEADERS,
+                    LATEST_OD_READ_ENDPOINT, METER_ENDPOINT, OD_READ_ENDPOINT,
+                    OD_READ_RETRY_TIME, TOKEN_EXPRIATION, USER_AGENT_TEMPLATE)
+from .exceptions import (SmartMeterTexasAPIError, SmartMeterTexasAuthError,
+                         SmartMeterTexasAuthExpired,
+                         SmartMeterTexasRateLimitError)
 
 __author__ = "Graham Wetzler"
 __email__ = "graham@wetzler.dev"
@@ -49,13 +39,15 @@ class Meter:
 
         # Trigger an on-demand meter read.
         await client.request(
-            OD_READ_ENDPOINT, json={"ESIID": self.esiid, "MeterNumber": self.meter},
+            OD_READ_ENDPOINT,
+            json={"ESIID": self.esiid, "MeterNumber": self.meter},
         )
 
         # Occasionally check to see if on-demand meter reading is complete.
         while True:
             json_response = await client.request(
-                LATEST_OD_READ_ENDPOINT, json={"ESIID": self.esiid},
+                LATEST_OD_READ_ENDPOINT,
+                json={"ESIID": self.esiid},
             )
             try:
                 data = json_response["data"]
@@ -112,18 +104,31 @@ class Account:
 
 
 class Client:
-    def __init__(self, websession: ClientSession, account: "Account"):
+    def __init__(
+        self, websession: ClientSession, account: "Account", ssl_context: ssl.SSLContext
+    ):
         self.websession = websession
         self.account = account
         self.token = None
         self.authenticated = False
         self.token_expiration = datetime.datetime.now()
         self.user_agent = None
+        self.ssl_context = ssl_context
+
+    def _init_ssl_context(self):
+        if self.ssl_context == None:
+            self.ssl_context = ssl.create_default_context(capath=certifi.where())
+            self.ssl_context.options |= (
+                ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
+            )
 
     async def _init_websession(self):
         """Make an initial GET request to initialize the session otherwise
         future POST requests will timeout."""
-        await self.websession.get(BASE_URL, headers=self._agent_headers())
+        self._init_ssl_context()
+        await self.websession.get(
+            BASE_URL, headers=self._agent_headers(), ssl=self.ssl_context
+        )
 
     def _agent_headers(self):
         """Build the user agent header."""
@@ -139,12 +144,19 @@ class Client:
 
     @retry(retry=retry_if_exception_type(SmartMeterTexasAuthExpired))
     async def request(
-        self, path: str, method: str = "post", **kwargs,
+        self,
+        path: str,
+        method: str = "post",
+        **kwargs,
     ):
         """Helper method to make API calls against the SMT API."""
         await self.authenticate()
         resp = await self.websession.request(
-            method, f"{BASE_ENDPOINT}{path}", headers=self.headers, **kwargs
+            method,
+            f"{BASE_ENDPOINT}{path}",
+            headers=self.headers,
+            **kwargs,
+            ssl=self.ssl_context,
         )
         if resp.status == 401:
             _LOGGER.debug("Authentication token expired; requesting new token")
@@ -174,6 +186,7 @@ class Client:
                     "rememberMe": "true",
                 },
                 headers=self.headers,
+                ssl=self.ssl_context,
             )
 
             if resp.status == 400:

@@ -6,6 +6,7 @@ import os
 import sys
 
 import aiohttp
+import get_ssl_context as get_ssl
 import pytz
 
 from smart_meter_texas import Account, Client
@@ -19,9 +20,12 @@ timezone = pytz.timezone("America/Chicago")
 
 
 async def main():
+
+    context = get_ssl.get_ssl_context()
+
     async with aiohttp.ClientSession() as websession:
         account = Account(username, password)
-        client = Client(websession, account)
+        client = Client(websession, account, ssl_context=context)
 
         print("Authenticating...")
         await client.authenticate()
