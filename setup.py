@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 with open("README.rst") as readme_file:
     readme = readme_file.read()
 
-requirements = ["aiohttp>=3.6.0", "python-dateutil>=2.8.1", "tenacity>=6.2.0"]
+requirements = ["aiohttp>=3.7.4,<4", "python-dateutil>=2.8.1", "tenacity>=6.2.0"]
 
 setup_requirements = ["pytest-runner"]
 
