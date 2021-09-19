@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import binascii
 import datetime
 import logging
 import socket
