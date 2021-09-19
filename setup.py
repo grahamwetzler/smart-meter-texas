@@ -2,12 +2,17 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()
 
-requirements = ["aiohttp>=3.7.4,<4", "asn1>=2.4.1", "python-dateutil>=2.8.1", "tenacity>=6.2.0"]
+requirements = [
+    "aiohttp>=3.7.4,<4",
+    "asn1>=2.4.1",
+    "python-dateutil>=2.8.1",
+    "tenacity>=8.0.1",
+]
 
 setup_requirements = ["pytest-runner"]
 
