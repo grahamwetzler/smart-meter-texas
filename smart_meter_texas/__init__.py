@@ -10,7 +10,7 @@ from random import randrange
 
 import asn1
 import certifi
-import dateutil
+import dateutil.parser
 import OpenSSL.crypto as crypto
 from aiohttp import ClientSession
 from tenacity import retry, retry_if_exception_type
@@ -338,7 +338,9 @@ class ClientSSLContext:
         ssl_context = ssl.create_default_context(capath=certifi.where())
         try:
             if certificate:
-                ssl_context.load_verify_locations(cafile=certifi.where(), cadata=certificate)
+                ssl_context.load_verify_locations(
+                    cafile=certifi.where(), cadata=certificate
+                )
                 _LOGGER.debug("Loaded certificate file into SSL Context")
         except Exception as error:
             _LOGGER.error("Error loading certificate file into SSL Context")
