@@ -17,6 +17,7 @@ password = os.environ["SMTPW"]
 
 timezone = pytz.timezone("America/Chicago")
 
+
 async def main():
 
     client_ssl_ctx = ClientSSLContext()
