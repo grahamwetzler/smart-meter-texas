@@ -15,5 +15,7 @@ jobs:
         with:
           configuration: --check-only --diff --profile black
 
-      - name: Black Code Formatter
-        uses: lgeiger/black-action@v1.0.1
+      - name: python-black
+        uses: jpetrucciani/black-check@21.8b0
+        with:
+          path: .
