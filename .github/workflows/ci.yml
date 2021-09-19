@@ -1,0 +1,19 @@
+name: CI
+on:
+  - push
+  - pull_request
+
+
+jobs:
+  run-linters:
+    name: Run linters
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: python-isort
+        uses: isort/isort-action@v0.1.0
+        with:
+          configuration: --check-only --diff --profile black
+
+      - name: Black Code Formatter
+        uses: lgeiger/black-action@v1.0.1
