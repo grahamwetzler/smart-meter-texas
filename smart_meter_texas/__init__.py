@@ -347,7 +347,7 @@ class ClientSSLContext:
             ssl_context = ssl.create_default_context(capath=certifi.where())
 
         # Enable strict checking
-        ssl_context.check_hostname = True
+        ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_REQUIRED
         # Disable SSL, TLSv1, TLSv1.1
         ssl_context.options |= (
