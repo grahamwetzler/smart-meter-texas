@@ -91,7 +91,7 @@ class Meter:
         """Get the interval data to parse out Surplus Generation"""
         _LOGGER.debug("Getting Interval data")
         surplus = []
-        yesterday = (datetime.date.today() - datetime.timedelta(days=2)).strftime("%m/%d/%Y")
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime("%m/%d/%Y")
 
         json_response = await client.request(
                 INTERVAL_SYNCH,
