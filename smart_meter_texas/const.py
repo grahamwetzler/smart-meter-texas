@@ -1,6 +1,6 @@
 import datetime
 
-BASE_HOSTNAME = "smartmetertexas.com"
+BASE_HOSTNAME = "www.smartmetertexas.com"
 BASE_URL = "https://" + BASE_HOSTNAME + "/"
 BASE_ENDPOINT = BASE_URL + "api"
 AUTH_ENDPOINT = "/user/authenticate"
@@ -8,6 +8,7 @@ DASHBOARD_ENDPOINT = "/dashboard"
 LATEST_OD_READ_ENDPOINT = "/usage/latestodrread"
 METER_ENDPOINT = "/meter"
 OD_READ_ENDPOINT = "/ondemandread"
+INTERVAL_SYNCH = "/adhoc/intervalsynch"
 
 USER_AGENT_TEMPLATE = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) "

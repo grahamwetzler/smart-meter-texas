@@ -27,6 +27,7 @@ from .const import (
     OD_READ_RETRY_TIME,
     TOKEN_EXPRIATION,
     USER_AGENT_TEMPLATE,
+    INTERVAL_SYNCH,
 )
 from .exceptions import (
     SmartMeterTexasAPIError,
@@ -35,9 +36,9 @@ from .exceptions import (
     SmartMeterTexasRateLimitError,
 )
 
-__author__ = "Graham Wetzler"
-__email__ = "graham@wetzler.dev"
-__version__ = "0.4.7"
+__author__ = "Bobbie Turner"
+__email__ = "johnavich@gmail.com"
+__version__ = "0.5.0"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class Meter:
         self.esiid = esiid
         self.address = address
         self.reading_data = None
+        self.interval = None
 
     async def read_meter(self, client: Client):
         """Triggers an on-demand meter read and returns it when complete."""
@@ -85,6 +87,55 @@ class Meter:
                 else:
                     _LOGGER.error("Unknown meter reading status: %s", status)
                     raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
+    async def get_15min(self, client: Client):
+        """Get the interval data to parse out Surplus Generation"""
+        _LOGGER.debug("Getting Interval data")
+        surplus = []
+        yesterday = (datetime.date.today() - datetime.timedelta(days=2)).strftime("%m/%d/%Y")
+
+        json_response = await client.request(
+                INTERVAL_SYNCH,
+                json={"startDate": yesterday,
+                    "endDate": yesterday,
+                    "reportFormat": "JSON",
+                    "ESIID": [self.esiid],
+                    "versionDate": None,
+                    "readDate": None,
+                    "versionNum": None,
+                    "dataType": None
+                },
+            )
+        try:
+            data = json_response["data"]
+            energy = data["energyData"]
+        except KeyError:
+            _LOGGER.error("Error reading data: ", json_response)
+            raise SmartMeterTexasAPIError(
+                    f"Error parsing response: {json_response}"
+                )
+        else:
+            h=-1
+            minute=0
+            for E in energy:
+                if E["RT"] == "G":
+                    RD=E["RD"].split(',')
+                    for G in RD:
+                        if G != "":
+                            if minute % 4 == 0:
+                                    h += 1
+                                    m = "00"
+                            elif minute % 4 == 1:
+                                    m = "15"
+                            elif minute % 4 == 2:
+                                    m = 30
+                            elif minute % 4 == 3:
+                                    m=45
+                            minute += 1
+                            Num = G.split("-")[0]
+                            surplus.append([f"{yesterday} {h}:{m}",Num])
+            self.interval = surplus
+            return self.interval
+
 
     @property
     def reading(self):
@@ -98,6 +149,10 @@ class Meter:
         date_as_utc = date.astimezone(datetime.timezone.utc)
         return date_as_utc
 
+    @property
+    def read_15min(self):
+        """Returns the list of date/times and the consumption rate"""
+        return self.interval
 
 class Account:
     def __init__(self, username: str, password: str):
