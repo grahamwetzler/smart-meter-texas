@@ -36,9 +36,10 @@ from .exceptions import (
     SmartMeterTexasRateLimitError,
 )
 
+__author__ = "Graham Wetzler"
+__email__ = "graham@wetzler.dev"
+__version__ = "0.4.7"
 __author__ = "Bobbie Turner"
-__email__ = "johnavich@gmail.com"
-__version__ = "0.5.0"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,25 +115,25 @@ class Meter:
                     f"Error parsing response: {json_response}"
                 )
         else:
-            h=-1
-            minute=0
-            for E in energy:
-                if E["RT"] == "G":
-                    RD=E["RD"].split(',')
-                    for G in RD:
-                        if G != "":
-                            if minute % 4 == 0:
-                                    h += 1
-                                    m = "00"
-                            elif minute % 4 == 1:
-                                    m = "15"
-                            elif minute % 4 == 2:
-                                    m = 30
-                            elif minute % 4 == 3:
-                                    m=45
-                            minute += 1
-                            Num = G.split("-")[0]
-                            surplus.append([f"{yesterday} {h}:{m}",Num])
+            hour=-1
+            minute_check=0
+            for entry in energy:
+                if e["RT"] == "G":
+                    readdata=E["RD"].split(',')
+                    for generated in readdata:
+                        if generated != "":
+                            if minute_check % 4 == 0:
+                                    hour += 1
+                                    minute = "00"
+                            elif minute_check % 4 == 1:
+                                    minute = "15"
+                            elif minute_check % 4 == 2:
+                                    minute = 30
+                            elif minute_check % 4 == 3:
+                                    minute=45
+                            minute_check += 1
+                            num = generated.split("-")[0]
+                            surplus.append([f"{yesterday} {hour}:{minute}",num])
             self.interval = surplus
             return self.interval
 
