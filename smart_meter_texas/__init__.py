@@ -88,6 +88,7 @@ class Meter:
                 else:
                     _LOGGER.error("Unknown meter reading status: %s", status)
                     raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
+
     async def get_15min(self, client: Client):
         """Get the interval data to parse out Surplus Generation"""
         _LOGGER.debug("Getting Interval data")
@@ -97,15 +98,14 @@ class Meter:
         json_response = await client.request(
                 INTERVAL_SYNCH,
                 json={"startDate": yesterday,
-                    "endDate": yesterday,
-                    "reportFormat": "JSON",
-                    "ESIID": [self.esiid],
-                    "versionDate": None,
-                    "readDate": None,
-                    "versionNum": None,
-                    "dataType": None
-                },
-            )
+                      "endDate": yesterday,
+                      "reportFormat": "JSON",
+                      "ESIID": [self.esiid],
+                      "versionDate": None,
+                      "readDate": None,
+                      "versionNum": None,
+                      "dataType": None},
+        )
         try:
             data = json_response["data"]
             energy = data["energyData"]
@@ -115,28 +115,27 @@ class Meter:
                     f"Error parsing response: {json_response}"
                 )
         else:
-            hour=-1
-            minute_check=0
+            hour = -1
+            minute_check = 0
             for entry in energy:
-                if e["RT"] == "G":
-                    readdata=E["RD"].split(',')
+                if entry["RT"] == "G":
+                    readdata = entry["RD"].split(',')
                     for generated in readdata:
                         if generated != "":
                             if minute_check % 4 == 0:
-                                    hour += 1
-                                    minute = "00"
+                                hour += 1
+                                minute = "00"
                             elif minute_check % 4 == 1:
-                                    minute = "15"
+                                minute = "15"
                             elif minute_check % 4 == 2:
-                                    minute = 30
+                                minute = 30
                             elif minute_check % 4 == 3:
-                                    minute=45
+                                minute = 45
                             minute_check += 1
                             num = generated.split("-")[0]
-                            surplus.append([f"{yesterday} {hour}:{minute}",num])
+                            surplus.append([f"{yesterday} {hour}:{minute}", num])
             self.interval = surplus
             return self.interval
-
 
     @property
     def reading(self):
@@ -154,6 +153,7 @@ class Meter:
     def read_15min(self):
         """Returns the list of date/times and the consumption rate"""
         return self.interval
+
 
 class Account:
     def __init__(self, username: str, password: str):
