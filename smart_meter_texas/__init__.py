@@ -21,13 +21,13 @@ from .const import (
     BASE_HOSTNAME,
     BASE_URL,
     CLIENT_HEADERS,
+    INTERVAL_SYNCH,
     LATEST_OD_READ_ENDPOINT,
     METER_ENDPOINT,
     OD_READ_ENDPOINT,
     OD_READ_RETRY_TIME,
     TOKEN_EXPRIATION,
     USER_AGENT_TEMPLATE,
-    INTERVAL_SYNCH,
 )
 from .exceptions import (
     SmartMeterTexasAPIError,
@@ -93,33 +93,35 @@ class Meter:
         """Get the interval data to parse out Surplus Generation"""
         _LOGGER.debug("Getting Interval data")
         surplus = []
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime("%m/%d/%Y")
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime(
+            "%m/%d/%Y"
+        )
 
         json_response = await client.request(
-                INTERVAL_SYNCH,
-                json={"startDate": yesterday,
-                      "endDate": yesterday,
-                      "reportFormat": "JSON",
-                      "ESIID": [self.esiid],
-                      "versionDate": None,
-                      "readDate": None,
-                      "versionNum": None,
-                      "dataType": None},
+            INTERVAL_SYNCH,
+            json={
+                "startDate": yesterday,
+                "endDate": yesterday,
+                "reportFormat": "JSON",
+                "ESIID": [self.esiid],
+                "versionDate": None,
+                "readDate": None,
+                "versionNum": None,
+                "dataType": None,
+            },
         )
         try:
             data = json_response["data"]
             energy = data["energyData"]
         except KeyError:
             _LOGGER.error("Error reading data: ", json_response)
-            raise SmartMeterTexasAPIError(
-                    f"Error parsing response: {json_response}"
-                )
+            raise SmartMeterTexasAPIError(f"Error parsing response: {json_response}")
         else:
             hour = -1
             minute_check = 0
             for entry in energy:
                 if entry["RT"] == "G":
-                    readdata = entry["RD"].split(',')
+                    readdata = entry["RD"].split(",")
                     for generated in readdata:
                         if generated != "":
                             if minute_check % 4 == 0:
