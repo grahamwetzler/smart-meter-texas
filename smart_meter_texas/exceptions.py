@@ -29,6 +29,7 @@ class SmartMeterTexasAPIError(SmartMeterTexasException):
 
     ...
 
+
 class SmartMeterTexasAPIDateError(SmartMeterTexasException):
     """Exception for no data for specified date"""
 
