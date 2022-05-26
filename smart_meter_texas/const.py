@@ -28,6 +28,7 @@ API_ERROR_RESPONSES = {
     "ERR-USR-USERNOTFOUND": "user not found",
     "ERR-USR-INVALIDPASSWORDERROR": "password is not correct",
 }
+API_DATE_ERROR = "No Energy Data received from the respective TDSP"
 
 OD_READ_RETRY_TIME = 15
 TOKEN_EXPRIATION = datetime.timedelta(minutes=15)
