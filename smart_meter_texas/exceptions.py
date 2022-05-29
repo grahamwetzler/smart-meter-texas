@@ -28,3 +28,9 @@ class SmartMeterTexasAPIError(SmartMeterTexasException):
     """General exception for unknown API responses."""
 
     ...
+
+
+class SmartMeterTexasAPIDateError(SmartMeterTexasException):
+    """Exception for no data for specified date"""
+
+    ...

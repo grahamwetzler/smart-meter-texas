@@ -30,6 +30,7 @@ from .const import (
     USER_AGENT_TEMPLATE,
 )
 from .exceptions import (
+    SmartMeterTexasAPIDateError,
     SmartMeterTexasAPIError,
     SmartMeterTexasAuthError,
     SmartMeterTexasAuthExpired,
@@ -88,55 +89,79 @@ class Meter:
                     _LOGGER.error("Unknown meter reading status: %s", status)
                     raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
 
-    async def get_15min(self, client: Client):
+    async def get_15min(self, client: Client, prevdays=1):
         """Get the interval data to parse out Surplus Generation"""
-        _LOGGER.debug("Getting Interval data")
-        surplus = []
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime(
-            "%m/%d/%Y"
-        )
-
-        json_response = await client.request(
-            INTERVAL_SYNCH,
-            json={
-                "startDate": yesterday,
-                "endDate": yesterday,
-                "reportFormat": "JSON",
-                "ESIID": [self.esiid],
-                "versionDate": None,
-                "readDate": None,
-                "versionNum": None,
-                "dataType": None,
-            },
-        )
-        try:
-            data = json_response["data"]
-            energy = data["energyData"]
-        except KeyError:
-            _LOGGER.error("Error reading data: ", json_response)
-            raise SmartMeterTexasAPIError(f"Error parsing response: {json_response}")
+        retry = 1
+        prevdays = int(prevdays)
+        if prevdays == 1:
+            yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime(
+                "%m/%d/%Y"
+            )
         else:
-            hour = -1
-            minute_check = 0
-            for entry in energy:
-                if entry["RT"] == "G":
-                    readdata = entry["RD"].split(",")
-                    for generated in readdata:
-                        if generated != "":
-                            if minute_check % 4 == 0:
-                                hour += 1
-                                minute = "00"
-                            elif minute_check % 4 == 1:
-                                minute = "15"
-                            elif minute_check % 4 == 2:
-                                minute = 30
-                            elif minute_check % 4 == 3:
-                                minute = 45
-                            minute_check += 1
-                            num = generated.split("-")[0]
-                            surplus.append([f"{yesterday} {hour}:{minute}", num])
-            self.interval = surplus
-            return self.interval
+            yesterday = (
+                datetime.date.today() - datetime.timedelta(days=prevdays)
+            ).strftime("%m/%d/%Y")
+        while retry < 3:
+            _LOGGER.debug("Getting Interval data")
+            surplus = []
+
+            json_response = await client.request(
+                INTERVAL_SYNCH,
+                json={
+                    "startDate": yesterday,
+                    "endDate": yesterday,
+                    "reportFormat": "JSON",
+                    "ESIID": [self.esiid],
+                    "versionDate": None,
+                    "readDate": None,
+                    "versionNum": None,
+                    "dataType": None,
+                },
+            )
+            try:
+                data = json_response["data"]
+                energy = data["energyData"]
+            except KeyError:
+                _LOGGER.error("Error reading data: ", json_response)
+                if data["errorCode"] == "1":
+                    tdsp = "TDSP" in data["errorMessage"]
+                    if tdsp:
+                        retry += 1
+                        yesterday = (
+                            datetime.date.today() - datetime.timedelta(days=retry)
+                        ).strftime("%m/%d/%Y")
+                        if retry < 3:
+                            continue
+                        else:
+                            raise SmartMeterTexasAPIDateError(
+                                "Unable to get data from SMT using the date"
+                            )
+                    else:
+                        raise SmartMeterTexasAPIError(
+                            f"Error parsing response: {json_response}"
+                        )
+            else:
+                hour = -1
+                minute_check = 0
+                for entry in energy:
+                    if entry["RT"] == "G":
+                        readdata = entry["RD"].split(",")
+                        for generated in readdata:
+                            if generated != "":
+                                if minute_check % 4 == 0:
+                                    hour += 1
+                                    minute = "00"
+                                elif minute_check % 4 == 1:
+                                    minute = "15"
+                                elif minute_check % 4 == 2:
+                                    minute = 30
+                                elif minute_check % 4 == 3:
+                                    minute = 45
+                                minute_check += 1
+                                num = generated.split("-")[0]
+                                surplus.append([f"{yesterday} {hour}:{minute}", num])
+                                self.interval = surplus
+                        return self.interval
 
     @property
     def reading(self):
