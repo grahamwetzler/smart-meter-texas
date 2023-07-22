@@ -16,7 +16,6 @@ password = os.environ["SMTPW"]
 
 
 async def main():
-
     client_ssl_ctx = ClientSSLContext()
     ssl_context = await client_ssl_ctx.get_ssl_context()
 
