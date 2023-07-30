@@ -78,7 +78,7 @@ class Meter:
                 )
             else:
                 if status == "COMPLETED":
-                    _LOGGER.debug("Reading completed: %s", self.reading_data)
+                    _LOGGER.debug("Reading completed: %s", data)
                     self.reading_data = data
                     return self.reading_data
                 elif status == "PENDING":
