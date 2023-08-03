@@ -172,8 +172,10 @@ class Meter:
     @property
     def reading_datetime(self):
         """Returns the UTC datetime of the latest reading.
-           'odrdate' is returned from the SMT API in America/Chicago timezone."""
-        date = dateutil.parser.parse(self.reading_data["odrdate"]).replace(tzinfo=gettz("America/Chicago"))
+        'odrdate' is returned from the SMT API in America/Chicago timezone."""
+        date = dateutil.parser.parse(self.reading_data["odrdate"]).replace(
+            tzinfo=gettz("America/Chicago")
+        )
         date_as_utc = date.astimezone(datetime.timezone.utc)
         return date_as_utc
 
