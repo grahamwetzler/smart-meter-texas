@@ -163,7 +163,7 @@ class Meter:
                             elif minute_check % 4 == 3:
                                 minute = 45
                             minute_check += 1
-                            num = generated.split("-")[0]
+                            num = float(generated.split("-")[0])
 
                             ref.append(
                                 [
