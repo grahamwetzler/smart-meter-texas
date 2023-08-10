@@ -125,7 +125,9 @@ class Meter:
                     tdsp = "TDSP" in data["errorMessage"]
                     if tdsp:
                         retry += 1
-                        yesterday = datetime.date.today() - datetime.timedelta(days=retry)
+                        yesterday = datetime.date.today() - datetime.timedelta(
+                            days=retry
+                        )
                         if retry < 3:
                             continue
                         else:
@@ -140,8 +142,8 @@ class Meter:
                 hour = -1
                 minute_check = 0
                 for entry in energy:
-                    """ energy[] may contain 1 or 2 arrays containing 'C' consumed energy,
-                        or 'G' surplus energy generated """
+                    """energy[] may contain 1 or 2 arrays containing 'C' consumed energy,
+                    or 'G' surplus energy generated"""
 
                     if entry["RT"] == "G":
                         ref = surplus
@@ -163,10 +165,14 @@ class Meter:
                             minute_check += 1
                             num = generated.split("-")[0]
 
-                            ref.append([
-                                datetime.datetime.combine(yesterday, datetime.time(hour, minute, 0)),
-                                num
-                            ])
+                            ref.append(
+                                [
+                                    datetime.datetime.combine(
+                                        yesterday, datetime.time(hour, minute, 0)
+                                    ),
+                                    num,
+                                ]
+                            )
 
                 self.interval = {"consumed": consumed, "surplus": surplus}
                 return self.interval
