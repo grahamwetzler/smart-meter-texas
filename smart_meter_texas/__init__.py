@@ -13,6 +13,7 @@ import certifi
 import dateutil.parser
 import OpenSSL.crypto as crypto
 from aiohttp import ClientSession
+from dateutil.tz import gettz
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
@@ -78,7 +79,7 @@ class Meter:
                 )
             else:
                 if status == "COMPLETED":
-                    _LOGGER.debug("Reading completed: %s", self.reading_data)
+                    _LOGGER.debug("Reading completed: %s", data)
                     self.reading_data = data
                     return self.reading_data
                 elif status == "PENDING":
@@ -177,8 +178,11 @@ class Meter:
 
     @property
     def reading_datetime(self):
-        """Returns the UTC datetime of the latest reading."""
-        date = dateutil.parser.parse(self.reading_data["odrdate"])
+        """Returns the UTC datetime of the latest reading.
+        'odrdate' is returned from the SMT API in America/Chicago timezone."""
+        date = dateutil.parser.parse(self.reading_data["odrdate"]).replace(
+            tzinfo=gettz("America/Chicago")
+        )
         date_as_utc = date.astimezone(datetime.timezone.utc)
         return date_as_utc
 
