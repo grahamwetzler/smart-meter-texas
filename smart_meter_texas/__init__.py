@@ -11,9 +11,9 @@ from random import randrange
 import asn1
 import certifi
 import dateutil.parser
-from dateutil.tz import gettz
 import OpenSSL.crypto as crypto
 from aiohttp import ClientSession
+from dateutil.tz import gettz
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
@@ -27,9 +27,9 @@ from .const import (
     METER_ENDPOINT,
     OD_READ_ENDPOINT,
     OD_READ_RETRY_TIME,
+    READING_DAILY,
     TOKEN_EXPRIATION,
     USER_AGENT_TEMPLATE,
-    READING_DAILY,
 )
 from .exceptions import (
     SmartMeterTexasAPIDateError,
@@ -115,16 +115,20 @@ class Meter:
         try:
             _LOGGER.debug(f"Daily reading data {json_response}")
             data = json_response["dailyData"]
-            if len(data) != 1:
+            if len(data) == 0:
+                raise SmartMeterTexasAPIError("No data points returned.")
+            elif len(data) > 1:
                 raise SmartMeterTexasAPIError("Too many data points returned")
-            data = data[0]
+            else:
+                data = data[0]
         except KeyError:
             msg = f"Error reading daily data: {json_response}"
             _LOGGER.error(msg)
             raise SmartMeterTexasAPIError(msg)
         else:
-
-            dt = dateutil.parser.parse(f"{data['date']} {data['starttime']}").replace(tzinfo=gettz("America/Chicago"))
+            dt = dateutil.parser.parse(f"{data['date']} {data['starttime']}").replace(
+                tzinfo=gettz("America/Chicago")
+            )
             self.daily_reading = {
                 "timestamp": dt,
                 "startreading": float(data["startreading"]),
@@ -133,7 +137,6 @@ class Meter:
             }
 
             return self.daily_reading
-
 
     async def get_15min(self, client: Client, prevdays=1):
         """Get the interval data to parse out Surplus Generation"""
