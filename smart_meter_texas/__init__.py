@@ -95,7 +95,7 @@ class Meter:
     async def get_daily(self, client: Client, ts=None):
         """Get the daily reading of the meter"""
 
-        # Default to yesterday. Daily reading for "today" won't be available until tomorrow
+        # Default to yesterday. Daily reading for "today" usually is not available until "tomorrow"
         if ts is None:
             ts = datetime.date.today() - datetime.timedelta(days=1)
 
@@ -116,7 +116,9 @@ class Meter:
             _LOGGER.debug(f"Daily reading data {json_response}")
             data = json_response["dailyData"]
             if len(data) == 0:
-                raise SmartMeterTexasAPIError("No data points returned.")
+                # Return a DateError to differentiate between too much data so user
+                # can decide to modify the date object and retry
+                raise SmartMeterTexasAPIDateError("No data points returned.")
             elif len(data) > 1:
                 raise SmartMeterTexasAPIError("Too many data points returned")
             else:
