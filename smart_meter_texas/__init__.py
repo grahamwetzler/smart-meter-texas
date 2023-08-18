@@ -6,6 +6,7 @@ import datetime
 import logging
 import socket
 import ssl
+import sys
 from random import randrange
 
 import asn1
@@ -222,9 +223,15 @@ class Client:
             new_ssl_context = ssl.create_default_context(capath=certifi.where())
             new_ssl_context.check_hostname = True
             new_ssl_context.verify_mode = ssl.CERT_REQUIRED
-            new_ssl_context.options |= (
-                ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
-            )
+            if sys.version_info >= (3, 7):
+                new_ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+            else:
+                new_ssl_context.options |= (
+                    ssl.OP_NO_TLSv1
+                    | ssl.OP_NO_TLSv1_1
+                    | ssl.OP_NO_SSLv3
+                    | ssl.OP_NO_SSLv2
+                )
             self.ssl_context = new_ssl_context
 
     async def _init_websession(self):
@@ -435,10 +442,12 @@ class ClientSSLContext:
         # Enable strict checking
         ssl_context.check_hostname = True
         ssl_context.verify_mode = ssl.CERT_REQUIRED
-        # Disable SSL, TLSv1, TLSv1.1
-        ssl_context.options |= (
-            ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
-        )
+        if sys.version_info >= (3, 7):
+            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+        else:
+            ssl_context.options |= (
+                ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_SSLv3 | ssl.OP_NO_SSLv2
+            )
 
         return ssl_context
 
