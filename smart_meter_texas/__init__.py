@@ -28,6 +28,7 @@ from .const import (
     METER_ENDPOINT,
     OD_READ_ENDPOINT,
     OD_READ_RETRY_TIME,
+    READING_DAILY,
     TOKEN_EXPRIATION,
     USER_AGENT_TEMPLATE,
 )
@@ -52,6 +53,7 @@ class Meter:
         self.esiid = esiid
         self.address = address
         self.reading_data = None
+        self.daily_reading = None
         self.interval = None
 
     async def read_meter(self, client: Client):
@@ -90,6 +92,54 @@ class Meter:
                 else:
                     _LOGGER.error("Unknown meter reading status: %s", status)
                     raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
+
+    async def get_daily(self, client: Client, ts=None):
+        """Get the daily reading of the meter"""
+
+        # Default to yesterday. Daily reading for "today" usually is not available until "tomorrow"
+        if ts is None:
+            ts = datetime.date.today() - datetime.timedelta(days=1)
+
+        # {"esiid":"NNNNNNNNNNNNNNNNN","startDate":"07/19/2023","endDate":"07/19/2023"}
+        payload = {
+            "esiid": self.esiid,
+            "startDate": ts.strftime("%m/%d/%Y"),
+            "endDate": ts.strftime("%m/%d/%Y"),
+        }
+
+        _LOGGER.debug(f"Getting daily reading for '{ts}' using {payload}")
+        json_response = await client.request(
+            READING_DAILY,
+            json=payload,
+        )
+
+        try:
+            _LOGGER.debug(f"Daily reading data {json_response}")
+            data = json_response["dailyData"]
+            if len(data) == 0:
+                # Return a DateError to differentiate between too much data so user
+                # can decide to modify the date object and retry
+                raise SmartMeterTexasAPIDateError("No data points returned.")
+            elif len(data) > 1:
+                raise SmartMeterTexasAPIError("Too many data points returned")
+            else:
+                data = data[0]
+        except KeyError:
+            msg = f"Error reading daily data: {json_response}"
+            _LOGGER.error(msg)
+            raise SmartMeterTexasAPIError(msg)
+        else:
+            dt = dateutil.parser.parse(f"{data['date']} {data['starttime']}").replace(
+                tzinfo=gettz("America/Chicago")
+            )
+            self.daily_reading = {
+                "timestamp": dt,
+                "startreading": float(data["startreading"]),
+                "endreading": float(data["endreading"]),
+                "usage": float(data["reading"]),
+            }
+
+            return self.daily_reading
 
     async def get_15min(self, client: Client, prevdays=1):
         """Get the interval data to parse out Surplus Generation"""
@@ -184,6 +234,11 @@ class Meter:
     def read_15min(self):
         """Returns the list of date/times and the consumption rate"""
         return self.interval
+
+    @property
+    def read_daily(self):
+        """Returns the dictionary of the most recent daily reading as provided by SMT"""
+        return self.daily_reading
 
 
 class Account:

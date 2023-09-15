@@ -9,6 +9,7 @@ LATEST_OD_READ_ENDPOINT = "/usage/latestodrread"
 METER_ENDPOINT = "/meter"
 OD_READ_ENDPOINT = "/ondemandread"
 INTERVAL_SYNCH = "/adhoc/intervalsynch"
+READING_DAILY = "/usage/daily"
 
 USER_AGENT_TEMPLATE = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) "
