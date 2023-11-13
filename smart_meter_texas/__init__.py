@@ -52,7 +52,7 @@ class Meter:
         self.esiid = esiid
         self.address = address
         self.reading_data = None
-        self.interval = None
+        self.interval = {"consumed": None, "surplus": None}
 
     async def read_meter(self, client: Client):
         """Triggers an on-demand meter read and returns it when complete."""
@@ -92,26 +92,21 @@ class Meter:
                     raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
 
     async def get_15min(self, client: Client, prevdays=1):
-        """Get the interval data to parse out Surplus Generation"""
+        """Get the interval data to parse out consumed, and surplus generation"""
         retry = 1
         prevdays = int(prevdays)
-        if prevdays == 1:
-            yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime(
-                "%m/%d/%Y"
-            )
-        else:
-            yesterday = (
-                datetime.date.today() - datetime.timedelta(days=prevdays)
-            ).strftime("%m/%d/%Y")
+        yesterday = datetime.date.today() - datetime.timedelta(days=prevdays)
+
         while retry < 3:
-            _LOGGER.debug("Getting Interval data")
+            _LOGGER.debug(f"Getting interval data for {yesterday}")
             surplus = []
+            consumed = []
 
             json_response = await client.request(
                 INTERVAL_SYNCH,
                 json={
-                    "startDate": yesterday,
-                    "endDate": yesterday,
+                    "startDate": yesterday.strftime("%m/%d/%Y"),
+                    "endDate": yesterday.strftime("%m/%d/%Y"),
                     "reportFormat": "JSON",
                     "ESIID": [self.esiid],
                     "versionDate": None,
@@ -120,18 +115,20 @@ class Meter:
                     "dataType": None,
                 },
             )
+
             try:
                 data = json_response["data"]
                 energy = data["energyData"]
+
             except KeyError:
-                _LOGGER.error("Error reading data: ", json_response)
+                _LOGGER.error(f"Error reading data: {json_response}")
                 if data["errorCode"] == "1":
                     tdsp = "TDSP" in data["errorMessage"]
                     if tdsp:
                         retry += 1
-                        yesterday = (
-                            datetime.date.today() - datetime.timedelta(days=retry)
-                        ).strftime("%m/%d/%Y")
+                        yesterday = datetime.date.today() - datetime.timedelta(
+                            days=retry
+                        )
                         if retry < 3:
                             continue
                         else:
@@ -146,24 +143,40 @@ class Meter:
                 hour = -1
                 minute_check = 0
                 for entry in energy:
+                    """energy[] may contain 1 or 2 arrays containing 'C' consumed energy,
+                    or 'G' surplus energy generated"""
+
                     if entry["RT"] == "G":
-                        readdata = entry["RD"].split(",")
-                        for generated in readdata:
-                            if generated != "":
-                                if minute_check % 4 == 0:
-                                    hour += 1
-                                    minute = "00"
-                                elif minute_check % 4 == 1:
-                                    minute = "15"
-                                elif minute_check % 4 == 2:
-                                    minute = 30
-                                elif minute_check % 4 == 3:
-                                    minute = 45
-                                minute_check += 1
-                                num = generated.split("-")[0]
-                                surplus.append([f"{yesterday} {hour}:{minute}", num])
-                                self.interval = surplus
-                        return self.interval
+                        ref = surplus
+                    else:
+                        ref = consumed
+
+                    readdata = entry["RD"].split(",")
+                    for generated in readdata:
+                        if generated != "":
+                            if minute_check % 4 == 0:
+                                hour += 1
+                                minute = 0
+                            elif minute_check % 4 == 1:
+                                minute = 15
+                            elif minute_check % 4 == 2:
+                                minute = 30
+                            elif minute_check % 4 == 3:
+                                minute = 45
+                            minute_check += 1
+                            num = float(generated.split("-")[0])
+
+                            ref.append(
+                                [
+                                    datetime.datetime.combine(
+                                        yesterday, datetime.time(hour, minute, 0)
+                                    ),
+                                    num,
+                                ]
+                            )
+
+                self.interval = {"consumed": consumed, "surplus": surplus}
+                return self.interval
 
     @property
     def reading(self):
