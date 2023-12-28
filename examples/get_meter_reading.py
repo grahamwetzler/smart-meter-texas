@@ -9,11 +9,13 @@ import aiohttp
 import pytz
 
 from smart_meter_texas import Account, Client, ClientSSLContext
+from decouple import config
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-username = os.environ["SMTUSER"]
-password = os.environ["SMTPW"]
+# https://pypi.org/project/python-decouple/
+username = config("SMTUSER")
+password = config("SMTPW")
 
 timezone = pytz.timezone("America/Chicago")
 

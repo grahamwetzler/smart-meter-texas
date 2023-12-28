@@ -82,6 +82,7 @@ celerybeat-schedule
 
 # dotenv
 .env
+settings.ini
 
 # virtualenv
 .venv
@@ -103,3 +104,4 @@ ENV/
 
 # IDE settings
 .vscode/
+
