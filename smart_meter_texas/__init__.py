@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
-import socket
 import ssl
 import sys
 from random import randrange
@@ -11,8 +10,6 @@ from random import randrange
 import certifi
 import dateutil.parser
 from aiohttp import ClientSession
-from cryptography import x509
-from cryptography.x509.oid import AuthorityInformationAccessOID, ExtensionOID
 from dateutil.tz import gettz
 from tenacity import retry, retry_if_exception_type
 
@@ -20,7 +17,6 @@ from .const import (
     API_DATE_ERROR,
     AUTH_ENDPOINT,
     BASE_ENDPOINT,
-    BASE_HOSTNAME,
     CLIENT_HEADERS,
     INTERVAL_SYNCH,
     LATEST_OD_READ_ENDPOINT,
@@ -367,63 +363,22 @@ class Client:
 
 
 class ClientSSLContext:
-    def get_ca_issuers_uri(self):
-        """Retrieves the CA Issuers URI value"""
-        ca_issuers_uri = None
-        try:
-            ssl_context = ssl.create_default_context(capath=certifi.where())
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            with ssl_context.wrap_socket(
-                socket.socket(), server_hostname=BASE_HOSTNAME
-            ) as s:
-                s.connect((BASE_HOSTNAME, 443))
-                cert_bin = s.getpeercert(True)
-            cert = x509.load_der_x509_certificate(cert_bin)
-            aia = cert.extensions.get_extension_for_oid(
-                ExtensionOID.AUTHORITY_INFORMATION_ACCESS
-            ).value
-            for description in aia:
-                if (
-                    description.access_method
-                    == AuthorityInformationAccessOID.CA_ISSUERS
-                ):
-                    ca_issuers_uri = description.access_location.value
-                    break
-        except Exception as error:
-            _LOGGER.error("Failed to lookup CA Issuers URI value: %s", error)
-        if ca_issuers_uri:
-            _LOGGER.debug("Found CA Issuers URI value: %s", ca_issuers_uri)
+    def create_ssl_context(self, certificate: bytes = None):
+        """Creates an SSL Context that trusts the certifi CA bundle.
 
-        return ca_issuers_uri
-
-    async def get_issuers_certificate(self, ca_issuers_uri: str):
-        """Downloads the CA Issuers Certificate file and returns the binary data"""
-        certificate = None
-        try:
-            if ca_issuers_uri != None:
-                async with ClientSession() as client:
-                    async with await client.get(ca_issuers_uri) as resp:
-                        if resp.status == 200:
-                            certificate = await resp.read()
-
-        except Exception as error:
-            _LOGGER.error("Failed to retrieve CA Issuers URI certificate file")
-            certificate = None
-        return certificate
-
-    def create_ssl_context(self, certificate: bin = None):
-        """Creates the SSL Context using the CA Issuers binary data"""
-        ssl_context = ssl.create_default_context(capath=certifi.where())
-        try:
-            if certificate:
-                ssl_context.load_verify_locations(
-                    cafile=certifi.where(), cadata=certificate
-                )
+        An explicitly supplied certificate is also trusted. Never pass one
+        obtained from an unverified connection.
+        """
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        if certificate:
+            try:
+                ssl_context.load_verify_locations(cadata=certificate)
                 _LOGGER.debug("Loaded certificate file into SSL Context")
-        except Exception as error:
-            _LOGGER.error("Error loading certificate file into SSL Context")
-            ssl_context = ssl.create_default_context(capath=certifi.where())
+            except (ssl.SSLError, TypeError, ValueError) as error:
+                _LOGGER.error(
+                    "Error loading certificate file into SSL Context: %s", error
+                )
+                ssl_context = ssl.create_default_context(cafile=certifi.where())
 
         # Enable strict checking
         ssl_context.check_hostname = True
@@ -439,13 +394,4 @@ class ClientSSLContext:
 
     async def get_ssl_context(self):
         """Returns the default SSL Context"""
-        ssl_context = None
-        try:
-            loop = asyncio.get_event_loop()
-            ca_issuers_uri = await loop.run_in_executor(None, self.get_ca_issuers_uri)
-            ca_certificate = await self.get_issuers_certificate(ca_issuers_uri)
-            ssl_context = self.create_ssl_context(ca_certificate)
-        except:
-            ssl_context = None
-
-        return ssl_context
+        return self.create_ssl_context()
