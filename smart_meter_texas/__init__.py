@@ -150,10 +150,12 @@ class Meter:
                 energy = error_message = None
             if isinstance(energy, list) and energy:
                 break
-            # An empty energyData means no readings for that day, like the date error.
-            if energy != [] and (
-                not error_message or API_DATE_ERROR not in error_message
-            ):
+            # An empty energyData without an error means no readings for that day.
+            if error_message:
+                no_data = API_DATE_ERROR in str(error_message)
+            else:
+                no_data = energy == []
+            if not no_data:
                 _LOGGER.error("Error reading data: %s", json_response)
                 raise SmartMeterTexasAPIError(
                     f"Error parsing response: {json_response}"
