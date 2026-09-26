@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import binascii
 import datetime
 import logging
 import socket
@@ -9,11 +8,11 @@ import ssl
 import sys
 from random import randrange
 
-import asn1
 import certifi
 import dateutil.parser
-import OpenSSL.crypto as crypto
 from aiohttp import ClientSession
+from cryptography import x509
+from cryptography.x509.oid import AuthorityInformationAccessOID, ExtensionOID
 from dateutil.tz import gettz
 from tenacity import retry, retry_if_exception_type
 
@@ -362,50 +361,9 @@ class Client:
 
 
 class ClientSSLContext:
-    def _asn1_value_to_string(self, tag_number, value):
-        """Retrieves the ASN.1 value as a string value"""
-        if tag_number == asn1.Numbers.ObjectIdentifier:
-            return value
-        elif isinstance(value, bytes):
-            return "0x" + str(binascii.hexlify(value).upper())
-        elif isinstance(value, str):
-            return value
-        else:
-            return repr(value)
-
-    def _find_ca_issuers_uri(self, input_stream, tag_ca_issuers_uri_found=False):
-        """Lookup the CA Issuers - URI Object and return the value."""
-        ca_issuers_uri = None
-        while not input_stream.eof() and not ca_issuers_uri:
-            tag = input_stream.peek()
-            if tag.typ == asn1.Types.Primitive:
-                tag, value = input_stream.read()
-
-                if tag_ca_issuers_uri_found:
-                    str_value = self._asn1_value_to_string(tag.nr, value)
-                    if str_value:
-                        ca_issuers_uri = str_value.decode("utf-8")
-                        tag_ca_issuers_uri_found = False
-                        break
-                    else:
-                        tag_ca_issuers_uri_found = False
-
-                elif self._asn1_value_to_string(tag.nr, value) == "1.3.6.1.5.5.7.48.2":
-                    tag_ca_issuers_uri_found = True
-
-            elif tag.typ == asn1.Types.Constructed:
-                input_stream.enter()
-                ca_issuers_uri = self._find_ca_issuers_uri(
-                    input_stream, tag_ca_issuers_uri_found
-                )
-                input_stream.leave()
-
-        return ca_issuers_uri
-
     def get_ca_issuers_uri(self):
         """Retrieves the CA Issuers URI value"""
         ca_issuers_uri = None
-        ssl_context = None
         try:
             ssl_context = ssl.create_default_context(capath=certifi.where())
             ssl_context.check_hostname = False
@@ -413,26 +371,23 @@ class ClientSSLContext:
             with ssl_context.wrap_socket(
                 socket.socket(), server_hostname=BASE_HOSTNAME
             ) as s:
-                try:
-                    s.connect((BASE_HOSTNAME, 443))
-                    cert_bin = s.getpeercert(True)
-                    x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_bin)
-                    for idx in range(x509.get_extension_count()):
-                        ext = x509.get_extension(idx)
-                        short_name = ext.get_short_name()
-                        if short_name == b"authorityInfoAccess":
-                            decoder = asn1.Decoder()
-                            data = ext.get_data()
-                            decoder.start(data)
-                            ca_issuers_uri = self._find_ca_issuers_uri(decoder, False)
-                finally:
-                    s.close()
+                s.connect((BASE_HOSTNAME, 443))
+                cert_bin = s.getpeercert(True)
+            cert = x509.load_der_x509_certificate(cert_bin)
+            aia = cert.extensions.get_extension_for_oid(
+                ExtensionOID.AUTHORITY_INFORMATION_ACCESS
+            ).value
+            for description in aia:
+                if (
+                    description.access_method
+                    == AuthorityInformationAccessOID.CA_ISSUERS
+                ):
+                    ca_issuers_uri = description.access_location.value
+                    break
         except Exception as error:
-            _LOGGER.error("Failed to lookup CA Issuers URI value")
-            ca_issuers_uri = None
-        finally:
-            if ca_issuers_uri:
-                _LOGGER.debug("Found CA Issuers URI value: " + ca_issuers_uri)
+            _LOGGER.error("Failed to lookup CA Issuers URI value: %s", error)
+        if ca_issuers_uri:
+            _LOGGER.debug("Found CA Issuers URI value: %s", ca_issuers_uri)
 
         return ca_issuers_uri
 
