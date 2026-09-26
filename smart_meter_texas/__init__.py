@@ -143,12 +143,18 @@ class Meter:
             )
             try:
                 data = json_response["data"]
-                if "energyData" in data:
-                    break
+                energy = data.get("energyData")
                 error_message = data.get("errorMessage", "")
             except (KeyError, TypeError, AttributeError):
-                error_message = None
-            if not error_message or API_DATE_ERROR not in error_message:
+                energy = error_message = None
+            if isinstance(energy, list) and energy:
+                break
+            # An empty energyData without an error means no readings for that day.
+            if error_message:
+                no_data = API_DATE_ERROR in str(error_message)
+            else:
+                no_data = energy == []
+            if not no_data:
                 _LOGGER.error("Error reading data: %s", json_response)
                 raise SmartMeterTexasAPIError(
                     f"Error parsing response: {json_response}"
@@ -161,7 +167,7 @@ class Meter:
 
         surplus = []
         consumption = []
-        for entry in data["energyData"]:
+        for entry in energy:
             intervals = self._parse_intervals(entry["DT"], entry["RD"])
             if entry["RT"] == "G":
                 surplus.extend(intervals)
