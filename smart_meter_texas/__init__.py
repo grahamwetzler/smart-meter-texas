@@ -18,6 +18,7 @@ from dateutil.tz import gettz
 from tenacity import retry, retry_if_exception_type
 
 from .const import (
+    API_DATE_ERROR,
     AUTH_ENDPOINT,
     BASE_ENDPOINT,
     BASE_HOSTNAME,
@@ -54,6 +55,7 @@ class Meter:
         self.address = address
         self.reading_data = None
         self.interval = None
+        self.interval_consumption = None
 
     async def _latest_od_read(self, client: Client):
         """Returns the data of the latest on-demand meter read."""
@@ -115,26 +117,23 @@ class Meter:
         )
 
     async def get_15min(self, client: Client, prevdays=1):
-        """Get the interval data to parse out Surplus Generation"""
-        retry = 1
+        """Gets the 15-minute interval data for the day `prevdays` days ago.
+
+        Surplus generation is returned and stored in `read_15min`, and
+        consumption is stored in `read_15min_consumption`. If SMT doesn't have
+        data for that day yet, the day before it is used instead.
+        """
         prevdays = int(prevdays)
-        if prevdays == 1:
-            yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime(
+        for days in (prevdays, prevdays + 1):
+            date = (datetime.date.today() - datetime.timedelta(days=days)).strftime(
                 "%m/%d/%Y"
             )
-        else:
-            yesterday = (
-                datetime.date.today() - datetime.timedelta(days=prevdays)
-            ).strftime("%m/%d/%Y")
-        while retry < 3:
-            _LOGGER.debug("Getting Interval data")
-            surplus = []
-
+            _LOGGER.debug("Getting Interval data for %s", date)
             json_response = await client.request(
                 INTERVAL_SYNCH,
                 json={
-                    "startDate": yesterday,
-                    "endDate": yesterday,
+                    "startDate": date,
+                    "endDate": date,
                     "reportFormat": "JSON",
                     "ESIID": [self.esiid],
                     "versionDate": None,
@@ -145,48 +144,57 @@ class Meter:
             )
             try:
                 data = json_response["data"]
-                energy = data["energyData"]
-            except KeyError:
-                _LOGGER.error("Error reading data: ", json_response)
-                if data["errorCode"] == "1":
-                    tdsp = "TDSP" in data["errorMessage"]
-                    if tdsp:
-                        retry += 1
-                        yesterday = (
-                            datetime.date.today() - datetime.timedelta(days=retry)
-                        ).strftime("%m/%d/%Y")
-                        if retry < 3:
-                            continue
-                        else:
-                            raise SmartMeterTexasAPIDateError(
-                                "Unable to get data from SMT using the date"
-                            )
-                    else:
-                        raise SmartMeterTexasAPIError(
-                            f"Error parsing response: {json_response}"
-                        )
+                if "energyData" in data:
+                    break
+                error_message = data.get("errorMessage", "")
+            except (KeyError, TypeError, AttributeError):
+                error_message = None
+            if not error_message or API_DATE_ERROR not in error_message:
+                _LOGGER.error("Error reading data: %s", json_response)
+                raise SmartMeterTexasAPIError(
+                    f"Error parsing response: {json_response}"
+                )
+            _LOGGER.debug("No interval data for %s", date)
+        else:
+            raise SmartMeterTexasAPIDateError(
+                "Unable to get data from SMT using the date"
+            )
+
+        surplus = []
+        consumption = []
+        for entry in data["energyData"]:
+            intervals = self._parse_intervals(entry["DT"], entry["RD"])
+            if entry["RT"] == "G":
+                surplus.extend(intervals)
+            elif entry["RT"] == "C":
+                consumption.extend(intervals)
             else:
-                hour = -1
-                minute_check = 0
-                for entry in energy:
-                    if entry["RT"] == "G":
-                        readdata = entry["RD"].split(",")
-                        for generated in readdata:
-                            if generated != "":
-                                if minute_check % 4 == 0:
-                                    hour += 1
-                                    minute = "00"
-                                elif minute_check % 4 == 1:
-                                    minute = "15"
-                                elif minute_check % 4 == 2:
-                                    minute = 30
-                                elif minute_check % 4 == 3:
-                                    minute = 45
-                                minute_check += 1
-                                num = generated.split("-")[0]
-                                surplus.append([f"{yesterday} {hour}:{minute}", num])
-                                self.interval = surplus
-                        return self.interval
+                _LOGGER.debug("Ignoring unknown interval type: %s", entry["RT"])
+
+        self.interval = surplus
+        self.interval_consumption = consumption
+        return self.interval
+
+    @staticmethod
+    def _parse_intervals(date: str, reads: str):
+        """Parses SMT's comma-separated interval reads into [time, kWh] pairs.
+
+        SMT reports 100 slots per day. Slots 8-11 hold the repeated 1 AM hour
+        when daylight saving time ends and are blank on other days, so the time
+        of each slot comes from its position rather than its order.
+        """
+        reads = reads.split(",")
+        intervals = []
+        for slot, read in enumerate(reads):
+            if not read:
+                continue
+            if len(reads) == 100 and slot >= 8:
+                minutes = (slot - 4) * 15
+            else:
+                minutes = slot * 15
+            hour, minute = divmod(minutes, 60)
+            intervals.append([f"{date} {hour}:{minute:02d}", read.split("-")[0]])
+        return intervals
 
     @property
     def reading(self):
@@ -205,8 +213,13 @@ class Meter:
 
     @property
     def read_15min(self):
-        """Returns the list of date/times and the consumption rate"""
+        """Returns the list of date/times and the surplus generation in kWh."""
         return self.interval
+
+    @property
+    def read_15min_consumption(self):
+        """Returns the list of date/times and the consumption in kWh."""
+        return self.interval_consumption
 
 
 class Account:
