@@ -34,3 +34,9 @@ class SmartMeterTexasAPIDateError(SmartMeterTexasException):
     """Exception for no data for specified date"""
 
     ...
+
+
+class SmartMeterTexasTimeoutError(SmartMeterTexasException):
+    """Exception for when an on-demand meter read does not complete in time."""
+
+    ...

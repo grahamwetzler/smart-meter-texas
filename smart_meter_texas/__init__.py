@@ -26,6 +26,7 @@ from .const import (
     LATEST_OD_READ_ENDPOINT,
     METER_ENDPOINT,
     OD_READ_ENDPOINT,
+    OD_READ_RETRIES,
     OD_READ_RETRY_TIME,
     TOKEN_EXPRIATION,
     USER_AGENT_TEMPLATE,
@@ -36,6 +37,7 @@ from .exceptions import (
     SmartMeterTexasAuthError,
     SmartMeterTexasAuthExpired,
     SmartMeterTexasRateLimitError,
+    SmartMeterTexasTimeoutError,
 )
 
 __author__ = "Graham Wetzler"
@@ -53,8 +55,30 @@ class Meter:
         self.reading_data = None
         self.interval = None
 
+    async def _latest_od_read(self, client: Client):
+        """Returns the data of the latest on-demand meter read."""
+        json_response = await client.request(
+            LATEST_OD_READ_ENDPOINT,
+            json={"ESIID": self.esiid},
+        )
+        try:
+            data = json_response["data"]
+            data["odrstatus"]
+        except (KeyError, TypeError):
+            _LOGGER.error("Error reading meter: %s", json_response)
+            raise SmartMeterTexasAPIError(f"Error parsing response: {json_response}")
+        return data
+
     async def read_meter(self, client: Client):
         """Triggers an on-demand meter read and returns it when complete."""
+        # Record the previous reading's date so a stale reading isn't mistaken
+        # for the new one; SMT can keep returning the previous reading for a
+        # while after the new read is requested.
+        try:
+            previous_date = (await self._latest_od_read(client)).get("odrdate")
+        except SmartMeterTexasAPIError:
+            previous_date = None
+
         _LOGGER.debug("Requesting meter reading")
 
         # Trigger an on-demand meter read.
@@ -64,31 +88,31 @@ class Meter:
         )
 
         # Occasionally check to see if on-demand meter reading is complete.
-        while True:
-            json_response = await client.request(
-                LATEST_OD_READ_ENDPOINT,
-                json={"ESIID": self.esiid},
-            )
-            try:
-                data = json_response["data"]
-                status = data["odrstatus"]
-            except KeyError:
-                _LOGGER.error("Error reading meter: ", json_response)
-                raise SmartMeterTexasAPIError(
-                    f"Error parsing response: {json_response}"
-                )
-            else:
-                if status == "COMPLETED":
+        for _ in range(OD_READ_RETRIES):
+            _LOGGER.debug("Sleeping for %s seconds", OD_READ_RETRY_TIME)
+            await asyncio.sleep(OD_READ_RETRY_TIME)
+
+            data = await self._latest_od_read(client)
+            status = data["odrstatus"]
+            if status == "COMPLETED":
+                if data.get("odrdate") == previous_date:
+                    _LOGGER.debug("Latest reading is still the previous reading")
+                elif not float(data.get("odrread") or 0):
+                    _LOGGER.debug("Reading completed without a value: %s", data)
+                else:
                     _LOGGER.debug("Reading completed: %s", data)
                     self.reading_data = data
                     return self.reading_data
-                elif status == "PENDING":
-                    _LOGGER.debug("Meter reading %s", status)
-                    _LOGGER.debug("Sleeping for %s seconds", OD_READ_RETRY_TIME)
-                    await asyncio.sleep(OD_READ_RETRY_TIME)
-                else:
-                    _LOGGER.error("Unknown meter reading status: %s", status)
-                    raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
+            elif status == "PENDING":
+                _LOGGER.debug("Meter reading %s", status)
+            else:
+                _LOGGER.error("Unknown meter reading status: %s", status)
+                raise SmartMeterTexasAPIError(f"Unknown meter status: {status}")
+
+        raise SmartMeterTexasTimeoutError(
+            f"Meter reading did not complete after "
+            f"{OD_READ_RETRIES * OD_READ_RETRY_TIME} seconds"
+        )
 
     async def get_15min(self, client: Client, prevdays=1):
         """Get the interval data to parse out Surplus Generation"""
