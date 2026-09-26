@@ -9,9 +9,8 @@ with open("README.rst") as readme_file:
 
 requirements = [
     "aiohttp>=3.7.4,<4",
-    "asn1>=2.4.1",
     "certifi>=2021.5.30",
-    "pyOpenSSL>=20.0.1",
+    "cryptography>=3.4.8",
     "python-dateutil>=2.8.1",
     "tenacity>=8.0.1",
 ]
