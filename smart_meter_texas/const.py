@@ -3,7 +3,7 @@ import datetime
 BASE_HOSTNAME = "www.smartmetertexas.com"
 BASE_URL = "https://" + BASE_HOSTNAME + "/"
 BASE_ENDPOINT = BASE_URL + "api"
-AUTH_ENDPOINT = BASE_URL + "/commonapi/user/authenticate"
+AUTH_ENDPOINT = BASE_URL + "commonapi/user/authenticate"
 LATEST_OD_READ_ENDPOINT = "/usage/latestodrread"
 METER_ENDPOINT = "/meter"
 OD_READ_ENDPOINT = "/ondemandread"
