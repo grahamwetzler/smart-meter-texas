@@ -11,11 +11,12 @@ import certifi
 import dateutil.parser
 from aiohttp import ClientSession
 from dateutil.tz import gettz
-from tenacity import retry, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from .const import (
     API_DATE_ERROR,
     AUTH_ENDPOINT,
+    AUTH_EXPIRED_ATTEMPTS,
     BASE_ENDPOINT,
     CLIENT_HEADERS,
     INTERVAL_SYNCH,
@@ -38,7 +39,7 @@ from .exceptions import (
 
 __author__ = "Graham Wetzler"
 __email__ = "graham@wetzler.dev"
-__version__ = "0.5.6"
+__version__ = "0.6.0"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +74,8 @@ class Meter:
         # while after the new read is requested.
         try:
             previous_date = (await self._latest_od_read(client)).get("odrdate")
+        except SmartMeterTexasAuthExpired:
+            raise
         except SmartMeterTexasAPIError:
             previous_date = None
 
@@ -283,7 +286,11 @@ class Client:
     def _update_token_expiration(self):
         self.token_expiration = datetime.datetime.now() + TOKEN_EXPRIATION
 
-    @retry(retry=retry_if_exception_type(SmartMeterTexasAuthExpired))
+    @retry(
+        retry=retry_if_exception_type(SmartMeterTexasAuthExpired),
+        stop=stop_after_attempt(AUTH_EXPIRED_ATTEMPTS),
+        reraise=True,
+    )
     async def request(
         self,
         path: str,
@@ -292,6 +299,7 @@ class Client:
     ):
         """Helper method to make API calls against the SMT API."""
         await self.authenticate()
+        sent_token = self.token
         resp = await self.websession.request(
             method,
             f"{BASE_ENDPOINT}{path}",
@@ -301,9 +309,14 @@ class Client:
         )
         if resp.status == 401:
             _LOGGER.debug("Authentication token expired; requesting new token")
-            self.authenticated = False
-            await self.authenticate()
-            raise SmartMeterTexasAuthExpired
+            resp.release()
+            # Invalidate the token so the next attempt logs in again instead
+            # of reusing it, unless a concurrent request already replaced it.
+            if self.token == sent_token:
+                self.authenticated = False
+                self.token = None
+                self.token_expiration = datetime.datetime.now()
+            raise SmartMeterTexasAuthExpired(f"{path} returned 401")
 
         # Since API call did not return a 400 code, update the token_expiration.
         self._update_token_expiration()
@@ -356,6 +369,10 @@ class Client:
 
     @property
     def token_valid(self):
+        # A concurrent request's success can extend token_expiration after a
+        # 401 cleared the token, so require a token to be present.
+        if self.token is None:
+            return False
         if self.authenticated or (datetime.datetime.now() < self.token_expiration):
             return True
 
