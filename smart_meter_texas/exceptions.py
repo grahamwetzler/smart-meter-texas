@@ -18,14 +18,17 @@ class SmartMeterTexasRateLimitError(SmartMeterTexasException):
     ...
 
 
-class SmartMeterTexasAuthExpired(SmartMeterTexasException):
-    """Exception for when a token is no longer valid."""
+class SmartMeterTexasAPIError(SmartMeterTexasException):
+    """General exception for unknown API responses."""
 
     ...
 
 
-class SmartMeterTexasAPIError(SmartMeterTexasException):
-    """General exception for unknown API responses."""
+class SmartMeterTexasAuthExpired(SmartMeterTexasAPIError):
+    """Exception for when a token is no longer valid.
+
+    Raised from `Client.request` when requests keep returning 401 after
+    logging in again."""
 
     ...
 

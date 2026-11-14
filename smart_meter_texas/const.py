@@ -37,3 +37,6 @@ API_DATE_ERROR = "No Energy Data received from the respective TDSP"
 OD_READ_RETRY_TIME = 15
 OD_READ_RETRIES = 20
 TOKEN_EXPRIATION = datetime.timedelta(minutes=15)
+# Attempts per request when it returns a 401: the original plus one retry
+# with a fresh login.
+AUTH_EXPIRED_ATTEMPTS = 2
